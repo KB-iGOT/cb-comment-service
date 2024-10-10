@@ -285,13 +285,14 @@ public class CommentServiceImpl implements CommentService {
     ApiResponse response = new ApiResponse();
     response.setResponseCode(HttpStatus.OK);
     String error = validateLikeCommentPayload(likePayload);
-    if(StringUtils.isNotBlank(error)){
+    if (StringUtils.isNotBlank(error)) {
       response.setResponseCode(HttpStatus.BAD_REQUEST);
       response.getParams().setErr(error);
       return response;
     }
-    Optional<Comment> optComment = commentRepository.findById((String) likePayload.get(Constants.COMMENT_ID));
-    if (!optComment.isPresent()){
+    Optional<Comment> optComment = commentRepository.findById(
+        (String) likePayload.get(Constants.COMMENT_ID));
+    if (!optComment.isPresent()) {
       response.setResponseCode(HttpStatus.BAD_REQUEST);
       response.getParams().setErr(error);
       return response;
@@ -303,30 +304,34 @@ public class CommentServiceImpl implements CommentService {
       Map<String, Object> propertyMap = new HashMap<>();
       propertyMap.put(Constants.COMMENT_ID, commentId);
       propertyMap.put(Constants.USERID, userId);
-      List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD,"comment_likes",propertyMap,
-          Collections.singletonList("flag"),null);
-      if(!records.isEmpty()){
+      List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+          Constants.KEYSPACE_SUNBIRD, "comment_likes", propertyMap,
+          Collections.singletonList("flag"), null);
+      if (!records.isEmpty()) {
         String record = (String) records.get(0).get(Constants.FLAG);
-        if(record.equals(likePayload.get(Constants.FLAG))){
+        if (record.equals(likePayload.get(Constants.FLAG))) {
           response.setResponseCode(HttpStatus.BAD_REQUEST);
-          response.getParams().setErr("Already given " + likePayload.get(Constants.FLAG) + " for this comment");
+          response.getParams()
+              .setErr("Already given " + likePayload.get(Constants.FLAG) + " for this comment");
           return response;
         }
         Map<String, Object> map = new HashMap<>();
-        map.put(Constants.FLAG,likePayload.get(Constants.FLAG));
+        map.put(Constants.FLAG, likePayload.get(Constants.FLAG));
         Map<String, Object> compositeKey = new HashMap<>();
-        compositeKey.put(Constants.COMMENT_ID,commentId);
-        compositeKey.put(Constants.USERID,userId);
-        cassandraOperation.updateRecordByCompositeKey(Constants.KEYSPACE_SUNBIRD,"comment_likes",map,compositeKey);
-        if (commentData.has((String) likePayload.get(Constants.FLAG))){
+        compositeKey.put(Constants.COMMENT_ID, commentId);
+        compositeKey.put(Constants.USERID, userId);
+        cassandraOperation.updateRecordByCompositeKey(Constants.KEYSPACE_SUNBIRD, "comment_likes",
+            map, compositeKey);
+        if (commentData.has((String) likePayload.get(Constants.FLAG))) {
           Long incrementCount = commentData.get((String) likePayload.get(Constants.FLAG)).asLong();
-          ((ObjectNode) commentData).put((String) likePayload.get(Constants.FLAG), incrementCount+1);
-        }else{
+          ((ObjectNode) commentData).put((String) likePayload.get(Constants.FLAG),
+              incrementCount + 1);
+        } else {
           ((ObjectNode) commentData).put((String) likePayload.get(Constants.FLAG), 1);
         }
-        if(commentData.has(record)){
+        if (commentData.has(record)) {
           Long decrementCount = commentData.get(record).asLong();
-          ((ObjectNode) commentData).put(record, decrementCount-1);
+          ((ObjectNode) commentData).put(record, decrementCount - 1);
         }
         Comment commentToBeUpdated = optComment.get();
         commentToBeUpdated.setCommentData(commentData);
@@ -334,13 +339,14 @@ public class CommentServiceImpl implements CommentService {
         redisTemplate.opsForValue()
             .set(COMMENT_KEY + commentToBeUpdated.getCommentId(), updatedComment, redisTtl,
                 TimeUnit.SECONDS);
-      }else{
-        propertyMap.put(Constants.FLAG,likePayload.get(Constants.FLAG));
-        cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD,"comment_likes",propertyMap);
-        if (commentData.has((String) likePayload.get(Constants.FLAG))){
+      } else {
+        propertyMap.put(Constants.FLAG, likePayload.get(Constants.FLAG));
+        cassandraOperation.insertRecord(Constants.KEYSPACE_SUNBIRD, "comment_likes", propertyMap);
+        if (commentData.has((String) likePayload.get(Constants.FLAG))) {
           Long incrementCount = commentData.get((String) likePayload.get(Constants.FLAG)).asLong();
-          ((ObjectNode) commentData).put((String) likePayload.get(Constants.FLAG), incrementCount+1);
-        }else{
+          ((ObjectNode) commentData).put((String) likePayload.get(Constants.FLAG),
+              incrementCount + 1);
+        } else {
           ((ObjectNode) commentData).put((String) likePayload.get(Constants.FLAG), 1);
         }
         Comment commentToBeUpdated = optComment.get();
@@ -350,7 +356,7 @@ public class CommentServiceImpl implements CommentService {
             .set(COMMENT_KEY + commentToBeUpdated.getCommentId(), updatedComment, redisTtl,
                 TimeUnit.SECONDS);
       }
-    }catch (Exception e){
+    } catch (Exception e) {
       response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
       response.getParams().setErr(e.getMessage());
       log.error(e.getMessage());
@@ -363,7 +369,7 @@ public class CommentServiceImpl implements CommentService {
     ApiResponse response = new ApiResponse();
     response.setResponseCode(HttpStatus.OK);
     String error = validatePayloadForCommAndUser(commentId, userId);
-    if(StringUtils.isNotBlank(error)){
+    if (StringUtils.isNotBlank(error)) {
       response.setResponseCode(HttpStatus.BAD_REQUEST);
       response.getParams().setErr(error);
       return response;
@@ -372,12 +378,13 @@ public class CommentServiceImpl implements CommentService {
     Map<String, Object> propertyMap = new HashMap<>();
     propertyMap.put(Constants.COMMENT_ID, commentId);
     propertyMap.put(Constants.USERID, userId);
-    List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD,"comment_likes",propertyMap,
-        Collections.singletonList("flag"),null);
-    if(!records.isEmpty()){
+    List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+        Constants.KEYSPACE_SUNBIRD, "comment_likes", propertyMap,
+        Collections.singletonList("flag"), null);
+    if (!records.isEmpty()) {
       response.setResult(records.get(0));
       return response;
-    }else{
+    } else {
       response.getParams().setErr("This user not liked this comment");
       return response;
     }
@@ -412,7 +419,8 @@ public class CommentServiceImpl implements CommentService {
     String voteType = (String) likePayload.get(Constants.FLAG);
     if (StringUtils.isBlank(voteType)) {
       errList.add(Constants.FLAG);
-    } else if (!Constants.LIKE.equalsIgnoreCase(voteType) && !Constants.DISLIKE.equalsIgnoreCase(voteType)) {
+    } else if (!Constants.LIKE.equalsIgnoreCase(voteType) && !Constants.DISLIKE.equalsIgnoreCase(
+        voteType)) {
       errList.add("fla must be either 'like' or 'dislike'");
     }
     if (!errList.isEmpty()) {
