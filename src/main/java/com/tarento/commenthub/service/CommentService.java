@@ -29,4 +29,6 @@ public interface CommentService {
   Comment resolveComment(String commentId);
 
   ApiResponse likeComment(Map<String, Object> likePayload);
+
+  ApiResponse getCommentLike(String commentId, String userId);
 }

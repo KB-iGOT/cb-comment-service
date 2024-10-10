@@ -117,4 +117,11 @@ public class CommentController {
     ApiResponse response = commentService.likeComment(likePayload);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
+
+  @GetMapping("/v1/like/read/{commentId}/{userId}")
+  public ResponseEntity getCommentLike(@RequestParam String commentId,
+      @RequestParam String userId) {
+    ApiResponse response = commentService.getCommentLike(commentId, userId);
+    return new ResponseEntity<>(response, response.getResponseCode());
+  }
 }

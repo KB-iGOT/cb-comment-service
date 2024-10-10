@@ -358,6 +358,47 @@ public class CommentServiceImpl implements CommentService {
     return response;
   }
 
+  @Override
+  public ApiResponse getCommentLike(String commentId, String userId) {
+    ApiResponse response = new ApiResponse();
+    response.setResponseCode(HttpStatus.OK);
+    String error = validatePayloadForCommAndUser(commentId, userId);
+    if(StringUtils.isNotBlank(error)){
+      response.setResponseCode(HttpStatus.BAD_REQUEST);
+      response.getParams().setErr(error);
+      return response;
+    }
+
+    Map<String, Object> propertyMap = new HashMap<>();
+    propertyMap.put(Constants.COMMENT_ID, commentId);
+    propertyMap.put(Constants.USERID, userId);
+    List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(Constants.KEYSPACE_SUNBIRD,"comment_likes",propertyMap,
+        Collections.singletonList("flag"),null);
+    if(!records.isEmpty()){
+      response.setResult(records.get(0));
+      return response;
+    }else{
+      response.getParams().setErr("This user not liked this comment");
+      return response;
+    }
+  }
+
+  private String validatePayloadForCommAndUser(String commentId, String userId) {
+    StringBuffer str = new StringBuffer();
+    List<String> errList = new ArrayList<>();
+
+    if (StringUtils.isBlank(commentId)) {
+      errList.add(Constants.COMMENT_ID);
+    }
+    if (StringUtils.isBlank(userId)) {
+      errList.add(Constants.USERID);
+    }
+    if (!errList.isEmpty()) {
+      str.append("Failed Due To Missing Params - ").append(errList).append(".");
+    }
+    return str.toString();
+  }
+
   private String validateLikeCommentPayload(Map<String, Object> likePayload) {
     StringBuffer str = new StringBuffer();
     List<String> errList = new ArrayList<>();
