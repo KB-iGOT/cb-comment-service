@@ -151,4 +151,10 @@ public class CommentController {
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
+  @GetMapping("/v1/reportReasons")
+  public ResponseEntity getListOfReportReasons() {
+    ApiResponse response = commentService.getListOfReportReasons();
+    return new ResponseEntity<>(response, response.getResponseCode());
+  }
+
 }

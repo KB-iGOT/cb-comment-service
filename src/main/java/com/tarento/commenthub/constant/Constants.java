@@ -122,4 +122,8 @@ public class Constants {
   public static final String COMMENT_LIKE_TABLE = "comment_likes";
   public static final String REPORTED_REASON = "reportedDueTo";
   public static final String OTHER_REASON = "otherReasons";
+  public static final String TABLE_SYSTEM_SETTINGS = "system_settings";
+  public static final String REPORT_REASON_CONFIG = "commentReportReasonConfig";
+  public static final String VALUES = "value";
+  
 }

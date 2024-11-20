@@ -35,6 +35,7 @@ import java.io.InputStream;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,9 +54,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 @Service
 @Slf4j
@@ -498,7 +502,7 @@ public class CommentServiceImpl implements CommentService {
       List<String> childNodeList, CommentTree commentTree, boolean isUserEnriched) {
     Map<String, Object> resultMap = new HashMap<>();
     Pageable pageable = PageRequest.of(offset, limit,
-        Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
+        Sort.by(Direction.DESC, Constants.CREATED_DATE));
     List<Comment> comments = commentRepository.findByCommentIdIn(childNodeList, pageable)
         .getContent();
     List<Map<String, Object>> userList = new ArrayList<>();
@@ -548,7 +552,7 @@ public class CommentServiceImpl implements CommentService {
     //added sorting
     int offset = defaultOffset;
     int limit = defaultLimit;
-    Sort sort = Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE);
+    Sort sort = Sort.by(Direction.DESC, Constants.CREATED_DATE);
     List<Comment> comments = commentRepository.findByCommentIdIn(commentIds, sort);
     List<Map<String, Object>> userList = new ArrayList<>();
     userList = fetchUsersByCommentData(comments);
@@ -656,6 +660,40 @@ public class CommentServiceImpl implements CommentService {
     comment.setStatus(Status.INACTIVE.name().toLowerCase());
     comment = commentRepository.save(comment);
     response.setResult(objectMapper.convertValue(comment, Map.class));
+    return response;
+  }
+
+  @Override
+  public ApiResponse getListOfReportReasons() {
+    log.info("CommentServiceImpl::getListOfReportReasons");
+    ApiResponse response = new ApiResponse();
+    response.setResponseCode(HttpStatus.OK);
+    Map<String, Object> searchRequest = new HashMap<String, Object>();
+    searchRequest.put(Constants.ID, Constants.REPORT_REASON_CONFIG);
+    try {
+      List<Map<String, Object>> existingDataList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+          Constants.KEYSPACE_SUNBIRD, Constants.TABLE_SYSTEM_SETTINGS, searchRequest, null, null);
+      if (CollectionUtils.isEmpty(existingDataList) && !existingDataList.contains(
+          Constants.VALUES)) {
+        return returnErrorMsg(Constants.NOT_FOUND, HttpStatus.NOT_FOUND, response);
+      }
+
+      if (!ObjectUtils.isEmpty(existingDataList.get(0).get(Constants.VALUES
+      ))) {
+        String mapString = (String) existingDataList.get(0).get(Constants.VALUES);
+        List<String> reportedResons = objectMapper.readValue(mapString,
+            new TypeReference<List<String>>() {
+            });
+        Map<String, Object> reportedReasons = new HashMap<>();
+        reportedReasons.put(Constants.REPORTED_REASON, reportedResons
+        );
+        response.setResult(reportedReasons);
+        return response;
+      }
+    } catch (Exception e) {
+      log.error("Error occured while fetching list of reportedReasons:" + e);
+      return returnErrorMsg(Constants.ERROR, HttpStatus.INTERNAL_SERVER_ERROR, response);
+    }
     return response;
   }
 
