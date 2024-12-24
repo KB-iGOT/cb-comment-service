@@ -12,15 +12,18 @@ import com.tarento.commenthub.entity.CommentTree;
 import com.tarento.commenthub.exception.CommentException;
 import com.tarento.commenthub.repository.CommentTreeRepository;
 import com.tarento.commenthub.service.CommentTreeService;
+import com.tarento.commenthub.utility.CbServerProperties;
 import com.tarento.commenthub.utility.Status;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.log4j.Log4j2;
 import net.bytebuddy.implementation.bytecode.Throw;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +39,12 @@ public class CommentTreeServiceImpl implements CommentTreeService {
 
   @Autowired
   private CommentTreeRepository commentTreeRepository;
+
+  @Autowired
+  private RedisTemplate redisTemplate;
+
+  @Autowired
+  private CbServerProperties cbServerProperties;
 
   public CommentTree createCommentTree(JsonNode payload) {
     CommentTreeIdentifierDTO commentTreeIdentifierDTO = getCommentTreeIdentifierDTO(
@@ -225,14 +234,30 @@ public class CommentTreeServiceImpl implements CommentTreeService {
       throw new CommentException(Constants.ERROR,
           "Please provide values for 'entityType', 'entityId', and 'workflow' as all of these fields are mandatory.");
     }
+    // Construct the Redis key
+    String redisKey = Constants.COMMENT_REDIS_PREFIX + Constants.UNDERSCORE
+        + commentTreeIdentifierDTO.getEntityId() + commentTreeIdentifierDTO.getEntityType()
+        + Constants.UNDERSCORE + commentTreeIdentifierDTO.getWorkflow();
 
+    // Check if the value already exists in Redis
+    String cachedJwtToken = (String) redisTemplate.opsForValue().get(redisKey);
+    if (StringUtils.isNotBlank(cachedJwtToken)) {
+      log.info("JWT token found in Redis for key: {}", redisKey);
+      return cachedJwtToken;
+    }
     String jwtToken = JWT.create()
         .withClaim(Constants.ENTITY_ID, commentTreeIdentifierDTO.getEntityId())
         .withClaim(Constants.ENTITY_TYPE, commentTreeIdentifierDTO.getEntityType())
         .withClaim(Constants.WORKFLOW, commentTreeIdentifierDTO.getWorkflow())
         .sign(Algorithm.HMAC256(jwtSecretKey));
-
+    redisTemplate.opsForValue();
     log.info("commentTreeId: {}", jwtToken);
+    redisTemplate.opsForValue().set(
+        redisKey,
+        jwtToken,
+        cbServerProperties.getRedisTtlForJwtToken(),
+        TimeUnit.SECONDS
+    );
     return jwtToken;
   }
 

@@ -33,6 +33,7 @@ import com.tarento.commenthub.service.CommentService;
 import com.tarento.commenthub.service.CommentTreeService;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import com.tarento.commenthub.transactional.utils.ApiResponse;
+import com.tarento.commenthub.utility.CbServerProperties;
 import com.tarento.commenthub.utility.Status;
 import java.io.InputStream;
 import java.sql.Timestamp;
@@ -103,6 +104,9 @@ public class CommentServiceImpl implements CommentService {
 
   @Autowired
   private UserCommentLikeRepository userCommentLikeRepository;
+
+  @Autowired
+  private CbServerProperties cbServerProperties;
 
   @Override
   public ResponseDTO addFirstCommentToCreateTree(JsonNode payload) {
@@ -786,14 +790,30 @@ public class CommentServiceImpl implements CommentService {
       throw new CommentException(Constants.ERROR,
           "Please provide values for 'entityType', 'entityId', and 'workflow' as all of these fields are mandatory.");
     }
+    // Construct the Redis key
+    String redisKey = Constants.COMMENT_REDIS_PREFIX + Constants.UNDERSCORE
+        + commentTreeIdentifierDTO.getEntityId() + commentTreeIdentifierDTO.getEntityType()
+        + Constants.UNDERSCORE + commentTreeIdentifierDTO.getWorkflow();
 
+    // Check if the value already exists in Redis
+    String cachedJwtToken = (String) redisTemplate.opsForValue().get(redisKey);
+    if (StringUtils.isNotBlank(cachedJwtToken)) {
+      log.info("JWT token found in Redis for key: {}", redisKey);
+      return cachedJwtToken;
+    }
     String jwtToken = JWT.create()
         .withClaim(Constants.ENTITY_ID, commentTreeIdentifierDTO.getEntityId())
         .withClaim(Constants.ENTITY_TYPE, commentTreeIdentifierDTO.getEntityType())
         .withClaim(Constants.WORKFLOW, commentTreeIdentifierDTO.getWorkflow())
         .sign(Algorithm.HMAC256(jwtSecretKey));
-
+    redisTemplate.opsForValue();
     log.info("commentTreeId: {}", jwtToken);
+    redisTemplate.opsForValue().set(
+        redisKey,
+        jwtToken,
+        cbServerProperties.getRedisTtlForJwtToken(),
+        TimeUnit.SECONDS
+    );
     return jwtToken;
   }
 

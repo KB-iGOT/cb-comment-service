@@ -124,4 +124,6 @@ public class Constants {
   public static final String OTHER_REASON = "otherReasons";
   public static final String COURSEID = "courseId";
   public static final String EMPTY_COURSEID = "CourseId is missing";
+  public static final String COMMENT_REDIS_PREFIX = "commentService";
+  public static final String UNDERSCORE = "_";
 }
