@@ -274,11 +274,12 @@ public class CommentTreeServiceImpl implements CommentTreeService {
 
       Map<String, Object> resultMap = objectMapper.convertValue(
           commentTreeToBeUpdated.getCommentTreeData(), Map.class);
+      commentTreeRepository.save(commentTreeToBeUpdated);
       redisTemplate.opsForValue()
           .set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeToBeUpdated.getCommentTreeId(), resultMap, redisTtl,
               TimeUnit.SECONDS);
-      commentTreeRepository.save(commentTreeToBeUpdated);
-
+      log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
+          commentId, commentTreeToBeUpdated.getCommentTreeId());
     }
   }
 

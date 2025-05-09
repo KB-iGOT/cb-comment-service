@@ -820,6 +820,15 @@ public class CommentServiceImpl implements CommentService {
       resultMap = (Map<String, Object>) redisTemplate.opsForValue()
           .get(Constants.COMMENT_KEY + generateRedisJwtTokenKey(commentTreeId, offset, limit));
     } else {
+      Optional<CommentTree> optionalCommentTree = commentTreeRepository.findById(commentTreeId);
+      if (optionalCommentTree.isPresent()) {
+        commentResultMap = objectMapper.convertValue(
+            optionalCommentTree.get().getCommentTreeData(), Map.class);
+        redisTemplate.opsForValue()
+            .set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, commentResultMap, redisTtl,
+                TimeUnit.SECONDS);
+      }
+      log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
       resultMap = fetchCommentFromPrimaryV3(offset, limit, childNodeList, commentTreeId);
       redisTemplate.opsForValue()
           .set(Constants.COMMENT_KEY + generateRedisJwtTokenKey(commentTreeId, offset, limit),
