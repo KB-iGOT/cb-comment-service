@@ -12,10 +12,10 @@ import redis.clients.jedis.JedisPoolConfig;
 @EnableCaching
 public class RedisConfiguration {
 
-  @Value("${spring.redis.host}")
+  @Value("${kp.redis.host}")
   private String redisHost;
 
-  @Value("${spring.redis.port}")
+  @Value("${kp.redis.port}")
   private int redisPort;
 
   @Bean
