@@ -12,6 +12,7 @@ import redis.clients.jedis.JedisPoolConfig;
 @EnableCaching
 public class RedisConfiguration {
 
+  // Redis server host and port
   @Value("${kp.redis.host}")
   private String redisHost;
 
