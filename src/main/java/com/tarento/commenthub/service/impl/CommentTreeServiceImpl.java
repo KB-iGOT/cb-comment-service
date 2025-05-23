@@ -159,7 +159,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
 
           // Store the serialized JSON in Redis
           redisTemplate.opsForValue()
-              .set(commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
+              .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
         } catch (JsonProcessingException e) {
           log.error("Error serializing resultMap to JSON for Redis storage", e);
           throw new RuntimeException("Failed to serialize resultMap", e);
