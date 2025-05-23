@@ -1,6 +1,7 @@
 package com.tarento.commenthub.service.impl;
 
 import static com.tarento.commenthub.constant.Constants.COMMENT_KEY;
+import static com.tarento.commenthub.constant.Constants.COMMENT_TREE_REDIS_KEY;
 import static com.tarento.commenthub.utility.CommentsUtility.containsNull;
 
 import com.auth0.jwt.JWT;
@@ -130,38 +131,8 @@ public class CommentServiceImpl implements CommentService {
     Comment comment = getPersistedComment(payload);
     ((ObjectNode) payload).put(Constants.COMMENT_ID, comment.getCommentId());
     CommentTree commentTree = commentTreeService.updateCommentTree(payload);
-
-    deleteRedisKey(String.valueOf(payload.get(Constants.COMMENT_TREE_ID)));
     ResponseDTO responseDTO = new ResponseDTO(commentTree, comment);
     return responseDTO;
-  }
-
-  private void deleteAndUpdateTheRedisKey(String commentTreeId, Map<String, Object> resultMap) {
-    try {
-      // Generate the Redis key
-      String token = generateRedisJwtTokenKey(commentTreeId, defaultOffset, defaultLimit);
-
-      // Delete the existing Redis key
-      deleteRedisKey(commentTreeId);
-
-      // Serialize the resultMap to JSON
-      String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-      // Store the serialized JSON in Redis
-      redisTemplate.opsForValue().set(token, resultMapJson, redisTtl, TimeUnit.SECONDS);
-    } catch (JsonProcessingException e) {
-      log.error("Error serializing resultMap to JSON for Redis storage", e);
-      throw new RuntimeException("Failed to serialize resultMap", e);
-    } catch (Exception e) {
-      log.error("Error occurred while updating Redis key for commentTreeId: {}", commentTreeId, e);
-      throw new RuntimeException("Failed to update Redis key", e);
-    }
-  }
-
-  private void deleteRedisKey(String commentTreeId) {
-    String token = generateRedisJwtTokenKey(commentTreeId
-        , defaultOffset, defaultLimit);
-    redisTemplate.delete(token);
   }
 
   @Override
@@ -213,7 +184,7 @@ public class CommentServiceImpl implements CommentService {
 
       // Create and return the response
       ResponseDTO responseDTO = new ResponseDTO(commentTree, updatedComment);
-      deleteRedisKey(String.valueOf(paylaod.get(Constants.COMMENT_TREE_ID)));
+
       return responseDTO;
     } catch (Exception e) {
       log.error("Error occurred while updating comment or fetching CommentTree for commentId: {}", commentToBeUpdated.getCommentId(), e);
@@ -880,7 +851,7 @@ public class CommentServiceImpl implements CommentService {
     Map<String, Object> commentResultMap = new HashMap<>();
     try {
       // Retrieve JSON string from Redis
-      String resultMapJson = (String) redisTemplate.opsForValue().get(commentTreeId);
+      String resultMapJson = (String) redisTemplate.opsForValue().get(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId);
 
       if (resultMapJson != null) {
         // Deserialize JSON string to Map
@@ -906,7 +877,7 @@ public class CommentServiceImpl implements CommentService {
 
           // Store the serialized JSON in Redis
           redisTemplate.opsForValue()
-              .set(commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
+              .set(COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
         } catch (JsonProcessingException e) {
           log.error("Error serializing resultMap to JSON for Redis storage", e);
           throw new RuntimeException("Failed to serialize resultMap", e);
@@ -957,26 +928,6 @@ public class CommentServiceImpl implements CommentService {
       } catch (JsonProcessingException e) {
         log.error("Error deserializing JSON from Redis", e);
         throw new RuntimeException("Failed to deserialize JSON", e);
-      }
-      Optional<CommentTree> optionalCommentTree = commentTreeRepository.findById(commentTreeId);
-      try {
-        if (optionalCommentTree.isPresent()) {
-          // Convert the CommentTreeData to a Map
-          commentResultMap = objectMapper.convertValue(
-              optionalCommentTree.get().getCommentTreeData(), Map.class);
-
-          // Serialize the Map to a JSON string
-          String commentResultMapJson = objectMapper.writeValueAsString(commentResultMap);
-
-          // Store the serialized JSON string in Redis
-          redisTemplate.opsForValue()
-              .set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, commentResultMapJson, redisTtl,
-                  TimeUnit.SECONDS);
-        }
-      } catch (JsonProcessingException e) {
-        log.error("Error serializing commentResultMap to JSON for commentTreeId: {}", commentTreeId,
-            e);
-        throw new RuntimeException("Failed to serialize commentResultMap", e);
       }
       log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
       resultMap = fetchCommentFromPrimaryV3(offset, limit, childNodeList, commentTreeId);

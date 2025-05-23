@@ -21,40 +21,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-//  @Value("${spring.redis.host}")
-//  private String redisHost;
-//
-//  @Value("${spring.redis.port}")
-//  private int redisPort;
-//
-//  @Bean
-//  public RedisTemplate<String, Comment> redisTemplate(RedisConnectionFactory connectionFactory) {
-//    RedisTemplate<String, Comment> redisTemplate = new RedisTemplate<>();
-//    redisTemplate.setConnectionFactory(connectionFactory);
-//    redisTemplate.setKeySerializer(new StringRedisSerializer());
-//    return redisTemplate;
-//  }
-//
-//  // Bean for RedisTemplate<String, Object>
-//  @Bean
-//  public RedisTemplate<String, Object> redisTemplateObject(RedisConnectionFactory connectionFactory) {
-//    RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-//    redisTemplate.setConnectionFactory(connectionFactory);
-//    redisTemplate.setKeySerializer(new StringRedisSerializer());
-//    redisTemplate.setValueSerializer(new StringRedisSerializer()); // Configure as needed for Object
-//    return redisTemplate;
-//  }
-//
-//  @Bean
-//  public RedisConnectionFactory redisConnectionFactory() {
-//    org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory factory =
-//        new org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory(redisHost,
-//            redisPort);
-//    factory.afterPropertiesSet();
-//    return factory;
-//  }
-
-
   @Value("${redis.ttl}")
   private long cacheTtl;
 
@@ -119,18 +85,6 @@ public class RedisConfig {
     template.setValueSerializer(new StringRedisSerializer());
     return template;
   }
-
-  // RedisTemplate for SearchResult object
-  @Bean(name = Constants.SEARCH_RESULT_REDIS_TEMPLATE)
-  public RedisTemplate<String, Comment> searchResultRedisTemplate(
-      @Qualifier(Constants.REDIS_CONNECTION_FACTORY) RedisConnectionFactory redisConnectionFactory) {
-    RedisTemplate<String, Comment> template = new RedisTemplate<>();
-    template.setConnectionFactory(redisConnectionFactory);
-    template.setKeySerializer(new StringRedisSerializer());
-    return template;
-  }
-
-
 
   private GenericObjectPoolConfig<?> buildPoolConfig() {
     GenericObjectPoolConfig<?> poolConfig = new GenericObjectPoolConfig<>();
