@@ -330,9 +330,13 @@ public class CommentServiceImpl implements CommentService {
     comment.setLastUpdatedDate(currentTime);
     comment = commentRepository.save(comment);
     try {
-      // Store the comment in Redis
+      // Serialize the Comment object to a JSON string
+      String commentJson = objectMapper.writeValueAsString(comment);
+
+      // Store the serialized JSON string in Redis
       redisTemplate.opsForValue()
-          .set(COMMENT_KEY + comment.getCommentId(), comment, redisTtl, TimeUnit.SECONDS);
+          .set(COMMENT_KEY + comment.getCommentId(), commentJson, redisTtl, TimeUnit.SECONDS);
+
       return comment;
     } catch (Exception e) {
       log.error("Error occurred while storing comment in Redis for commentId: {}", comment.getCommentId(), e);
@@ -831,8 +835,7 @@ public class CommentServiceImpl implements CommentService {
 
   @Override
   public ApiResponse paginatedCommentV3(SearchCriteria searchCriteria) {
-    log.info("CommentServiceImpl:paginatedCommentV3::inside the method:SearchCriteria Payload: {}",
-        searchCriteria);
+    log.info("CommentServiceImpl:paginatedCommentV3::inside the method:SearchCriteria Payload: {}", searchCriteria);
     String error = validateSearchPayload(searchCriteria);
     ApiResponse response = new ApiResponse();
     response.setResponseCode(HttpStatus.OK);
@@ -848,43 +851,32 @@ public class CommentServiceImpl implements CommentService {
     } else {
       commentTreeId = searchCriteria.getCommentTreeId();
     }
-    Map<String, Object> commentResultMap = new HashMap<>();
+    Map<String, Object> commentResultMap = null;
     try {
-      // Retrieve JSON string from Redis
-      String resultMapJson = (String) redisTemplate.opsForValue().get(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId);
-
-      if (resultMapJson != null) {
-        // Deserialize JSON string to Map
-        commentResultMap = objectMapper.readValue(resultMapJson,
-            new TypeReference<Map<String, Object>>() {
-            });
+      // Attempt to fetch from Redis
+      String cachedData = (String) redisTemplate.opsForValue().get(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId);
+      if (cachedData != null) {
+        commentResultMap = objectMapper.readValue(cachedData, new TypeReference<Map<String, Object>>() {});
       }
-      // Deserialize JSON string to Map
-    } catch (JsonProcessingException e) {
-      log.error("Error deserializing JSON from Redis", e);
-      throw new RuntimeException("Failed to deserialize JSON", e);
+    } catch (Exception e) {
+      log.error("Error occurred while fetching data from Redis for commentTreeId: {}", commentTreeId, e);
     }
-    if (MapUtils.isEmpty(commentResultMap)) {
+    if (commentResultMap == null) {
       log.info("CommentTreeService::getCommentTree:not found in redis");
       Optional<CommentTree> optionalCommentTree = commentTreeRepository.findById(commentTreeId);
       if (optionalCommentTree.isPresent()) {
         log.info("CommentTreeService::getCommentTree:fetching from postgres");
-        commentResultMap = objectMapper.convertValue(
-            optionalCommentTree.get().getCommentTreeData(), Map.class);
+        commentResultMap = objectMapper.convertValue(optionalCommentTree.get().getCommentTreeData(), Map.class);
         try {
-          // Serialize resultMap to JSON
-          String resultMapJson = objectMapper.writeValueAsString(commentResultMap);
-
-          // Store the serialized JSON in Redis
-          redisTemplate.opsForValue()
-              .set(COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
+          // Serialize and store in Redis
+          String serializedData = objectMapper.writeValueAsString(commentResultMap);
+          redisTemplate.opsForValue().set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, serializedData, redisTtl, TimeUnit.SECONDS);
         } catch (JsonProcessingException e) {
-          log.error("Error serializing resultMap to JSON for Redis storage", e);
-          throw new RuntimeException("Failed to serialize resultMap", e);
+          log.error("Error occurred while storing data in Redis for commentTreeId: {}", commentTreeId, e);
         }
       }
     }
-    if (MapUtils.isEmpty(commentResultMap)) {
+    if (commentResultMap == null) {
       response.getParams().setErr("CommentTree Not found");
       return returnErrorMsg("CommentTree Not found", HttpStatus.NOT_FOUND, response);
     }
@@ -897,72 +889,47 @@ public class CommentServiceImpl implements CommentService {
     Map<String, Object> resultMap = new HashMap<>();
     if (!searchCriteria.isOverrideCache()) {
       try {
-        // Retrieve JSON string from Redis
-        String resultMapJson = (String) redisTemplate.opsForValue()
-            .get(generateRedisJwtTokenKey(commentTreeId, offset, limit));
-
-        if (resultMapJson != null) {
-          // Deserialize JSON string to Map
-          commentResultMap = objectMapper.readValue(resultMapJson,
-              new TypeReference<Map<String, Object>>() {
-              });
+        // Attempt to fetch paginated data from Redis
+        String cachedResult = (String) redisTemplate.opsForValue().get(Constants.COMMENT_KEY + generateRedisJwtTokenKey(commentTreeId, offset, limit));
+        if (cachedResult != null) {
+          resultMap = objectMapper.readValue(cachedResult, new TypeReference<Map<String, Object>>() {});
         }
-        // Deserialize JSON string to Map
-      } catch (JsonProcessingException e) {
-        log.error("Error deserializing JSON from Redis", e);
-        throw new RuntimeException("Failed to deserialize JSON", e);
+      } catch (Exception e) {
+        log.error("Error occurred while fetching paginated data from Redis for commentTreeId: {}", commentTreeId, e);
       }
     } else {
-      try {
-        // Retrieve JSON string from Redis
-        String resultMapJson = (String) redisTemplate.opsForValue()
-            .get(generateRedisJwtTokenKey(commentTreeId, offset, limit));
-
-        if (resultMapJson != null) {
-          // Deserialize JSON string to Map
-          commentResultMap = objectMapper.readValue(resultMapJson,
-              new TypeReference<Map<String, Object>>() {
-              });
+      Optional<CommentTree> optionalCommentTree = commentTreeRepository.findById(commentTreeId);
+      if (optionalCommentTree.isPresent()) {
+        commentResultMap = objectMapper.convertValue(optionalCommentTree.get().getCommentTreeData(), Map.class);
+        try {
+          // Serialize and store in Redis
+          String serializedData = objectMapper.writeValueAsString(commentResultMap);
+          redisTemplate.opsForValue().set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, serializedData, redisTtl, TimeUnit.SECONDS);
+        } catch (JsonProcessingException e) {
+          log.error("Error occurred while storing data in Redis for commentTreeId: {}", commentTreeId, e);
         }
-        // Deserialize JSON string to Map
-      } catch (JsonProcessingException e) {
-        log.error("Error deserializing JSON from Redis", e);
-        throw new RuntimeException("Failed to deserialize JSON", e);
       }
       log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
       resultMap = fetchCommentFromPrimaryV3(offset, limit, childNodeList, commentTreeId);
       try {
-        // Serialize resultMap to JSON
-        String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-        // Store the serialized JSON in Redis
-        redisTemplate.opsForValue()
-            .set(generateRedisJwtTokenKey(commentTreeId, offset, limit), resultMapJson, redisTtl,
-                TimeUnit.SECONDS);
+        // Serialize and store paginated data in Redis
+        String serializedResult = objectMapper.writeValueAsString(resultMap);
+        redisTemplate.opsForValue().set(Constants.COMMENT_KEY + generateRedisJwtTokenKey(commentTreeId, offset, limit), serializedResult, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        log.error("Error occurred while storing paginated data in Redis for commentTreeId: {}", commentTreeId, e);
       }
       response.setResult(resultMap);
       return response;
     }
     if (MapUtils.isEmpty(resultMap)) {
       log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
+      resultMap = fetchCommentFromPrimaryV3(offset, limit, childNodeList, commentTreeId);
       try {
-        // Retrieve JSON string from Redis
-        String resultMapJson = (String) redisTemplate.opsForValue()
-            .get(generateRedisJwtTokenKey(commentTreeId, offset, limit));
-
-        if (resultMapJson != null) {
-          // Deserialize JSON string to Map
-          resultMap = objectMapper.readValue(resultMapJson,
-              new TypeReference<Map<String, Object>>() {
-              });
-        }
-        // Deserialize JSON string to Map
+        // Serialize and store paginated data in Redis
+        String serializedResult = objectMapper.writeValueAsString(resultMap);
+        redisTemplate.opsForValue().set(Constants.COMMENT_KEY + generateRedisJwtTokenKey(commentTreeId, offset, limit), serializedResult, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
-        log.error("Error deserializing JSON from Redis", e);
-        throw new RuntimeException("Failed to deserialize JSON", e);
+        log.error("Error occurred while storing paginated data in Redis for commentTreeId: {}", commentTreeId, e);
       }
       response.setResult(resultMap);
       return response;
