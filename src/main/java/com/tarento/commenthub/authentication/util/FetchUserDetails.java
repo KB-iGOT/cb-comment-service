@@ -3,6 +3,7 @@ package com.tarento.commenthub.authentication.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tarento.commenthub.cache.CacheService;
 import com.tarento.commenthub.constant.Constants;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ import org.springframework.stereotype.Component;
 public class FetchUserDetails {
 
   @Autowired
-  private RedisTemplate<String, Object> redisTemplate;
+  private CacheService cacheService;
 
   @Autowired
   private CassandraOperation cassandraOperation;
@@ -33,7 +34,7 @@ public class FetchUserDetails {
   public List<Object> fetchDataForKeys(List<String> keys) {
     log.info("FetchUserDetails::fetchDataForKeys::inside method");
     // Fetch values for all keys from Redis
-    List<Object> values = redisTemplate.opsForValue().multiGet(keys);
+    List<Object> values = cacheService.hgetMulti(keys);
 
     // Create a map of key-value pairs, converting stringified JSON objects to User objects
     return keys.stream()
