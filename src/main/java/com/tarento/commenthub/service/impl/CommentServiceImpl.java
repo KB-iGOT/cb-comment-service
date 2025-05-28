@@ -175,10 +175,17 @@ public class CommentServiceImpl implements CommentService {
       // Save the updated comment to the repository
       Comment updatedComment = commentRepository.save(commentToBeUpdated);
 
-      // Store the updated comment in Redis
-      redisTemplate.opsForValue()
-          .set(COMMENT_KEY + commentToBeUpdated.getCommentId(), updatedComment, redisTtl, TimeUnit.SECONDS);
+      try {
+        // Convert updatedComment to JSON string
+        String commentJson = objectMapper.writeValueAsString(updatedComment);
 
+        // Store the stringified comment in Redis
+        redisTemplate.opsForValue()
+                .set(COMMENT_KEY + commentToBeUpdated.getCommentId(), commentJson, redisTtl, TimeUnit.SECONDS);
+      } catch (Exception e) {
+        // Handle JSON conversion errors
+        e.printStackTrace();
+      }
       // Fetch the updated CommentTree
       CommentTree commentTree = commentTreeService.getCommentTreeById(paylaod.get(Constants.COMMENT_TREE_ID).asText());
 
