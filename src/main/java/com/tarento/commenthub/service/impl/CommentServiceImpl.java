@@ -184,7 +184,7 @@ public class CommentServiceImpl implements CommentService {
                 .set(COMMENT_KEY + commentToBeUpdated.getCommentId(), commentJson, redisTtl, TimeUnit.SECONDS);
       } catch (Exception e) {
         // Handle JSON conversion errors
-        e.printStackTrace();
+        log.error("Error occurred while updating comment details in redis", e);
       }
       // Fetch the updated CommentTree
       CommentTree commentTree = commentTreeService.getCommentTreeById(paylaod.get(Constants.COMMENT_TREE_ID).asText());
