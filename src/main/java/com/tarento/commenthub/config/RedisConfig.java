@@ -29,12 +29,6 @@ public class RedisConfig {
   @Value("${spring.redis.port}")
   private int redisPort;
 
-  @Value("${spring.redis.data.host}")
-  private String redisDataHost;
-
-  @Value("${spring.redis.data.port}")
-  private int redisDataPort;
-
   private final long redisTimeout = 60000;
 
   @Bean
@@ -65,30 +59,8 @@ public class RedisConfig {
     return factory;
   }
 
-  // RedisTemplate for data Redis
-  @Bean(name = Constants.REDIS_DATA_TEMPLATE)
-  public RedisTemplate<String, Object> redisDataTemplate(
-          @Qualifier(Constants.REDIS_DATA_CONNECTION_FACTORY) RedisConnectionFactory redisDataConnectionFactory) {
-    RedisTemplate<String, Object> template = new RedisTemplate<>();
-    template.setConnectionFactory(redisDataConnectionFactory);
-    template.setKeySerializer(new StringRedisSerializer());
-    template.setValueSerializer(new StringRedisSerializer());
-    return template;
-  }
 
-  // Redis connection for data
-  @Bean(name = Constants.REDIS_DATA_CONNECTION_FACTORY)
-  public RedisConnectionFactory redisDataConnectionFactory() {
-    RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
-    config.setHostName(redisDataHost);
-    config.setPort(redisDataPort);
-    config.setDatabase(0);
-    LettuceClientConfiguration clientConfig = LettucePoolingClientConfiguration.builder()
-            .commandTimeout(Duration.ofMillis(redisTimeout))
-            .poolConfig(buildPoolConfig())
-            .build();
-    return new LettuceConnectionFactory(config, clientConfig);
-  }
+
 
   private GenericObjectPoolConfig<?> buildPoolConfig() {
     GenericObjectPoolConfig<?> poolConfig = new GenericObjectPoolConfig<>();
