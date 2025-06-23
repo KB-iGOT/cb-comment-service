@@ -18,40 +18,38 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import redis.clients.jedis.JedisPool;
 
 @Slf4j
 @Component
 public class FetchUserDetails {
 
-  @Autowired
-  private CacheService cacheService;
+    @Autowired
+    private JedisPool jedisPool;
 
   @Autowired
   private CassandraOperation cassandraOperation;
 
   ObjectMapper objectMapper = new ObjectMapper();
 
-  public List<Object> fetchDataForKeys(List<String> keys) {
-    log.info("FetchUserDetails::fetchDataForKeys::inside method");
-    // Fetch values for all keys from Redis
-    List<Object> values = cacheService.hgetMulti(keys);
-
-    // Create a map of key-value pairs, converting stringified JSON objects to User objects
-    return keys.stream()
-        .filter(key -> values.get(keys.indexOf(key)) != null) // Filter out null values
-        .map(key -> {
-          String stringifiedJson = (String) values.get(keys.indexOf(key)); // Cast the value to String
-          try {
-            // Convert the stringified JSON to a User object using ObjectMapper
-            return objectMapper.readValue(stringifiedJson, Object.class); // You can map this to a specific User type if needed
-          } catch (Exception e) {
-            // Handle any exceptions during deserialization
-           log.error("Error while fetching user details from Redis: {}", e.getMessage(), e);
-            return null; // Return null in case of error
-          }
-        })
-        .collect(Collectors.toList());
-  }
+    public List<Object> fetchDataForKeys(List<String> keys) {
+        log.info("FetchUserDetails::fetchDataForKeys::inside method");
+        List<Object> result = new ArrayList<>();
+        try (var jedis = jedisPool.getResource()) {
+            String[] keysArray = keys.toArray(new String[0]);
+            List<String> values = jedis.mget(keysArray);
+            for (String stringifiedJson : values) {
+                if (stringifiedJson != null) {
+                    try {
+                        result.add(objectMapper.readValue(stringifiedJson, Object.class));
+                    } catch (Exception e) {
+                        log.error("Error while fetching user details from Redis: {}", e.getMessage(), e);
+                    }
+                }
+            }
+        }
+        return result;
+    }
 
   public List<Object> fetchUserFromprimary(List<String> userIds) {
     log.info("FetchUserDetails::fetchUserFromprimary::fetching userDetails from primaryDb");
