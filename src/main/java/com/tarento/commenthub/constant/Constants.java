@@ -135,4 +135,6 @@ public class Constants {
   public static final String EQUAL_WITH_QUE_MARK = " = ? ";
   public static final String WHERE_ID = "where id";
   public static final String SET = " SET ";
+  public static final String REDIS_DATA_TEMPLATE = "redisDataTemplate";
+  public static final String REDIS_DATA_CONNECTION_FACTORY = "redisDataConnectionFactory";
 }
