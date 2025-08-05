@@ -135,4 +135,16 @@ public class Constants {
   public static final String EQUAL_WITH_QUE_MARK = " = ? ";
   public static final String WHERE_ID = "where id";
   public static final String SET = " SET ";
+  public static final String MENTIONED_USERS = "mentionedUsers";
+  public static final String USER_TABLE = "user";
+  public static final String LEARN_DISCUSSION_POST_COMMENT = "LEARN_DISCUSSION_POST_COMMENT";
+  public static final String LEARN_DISCUSSION_POST_REPLY = "LEARN_DISCUSSION_POST_REPLY";
+  public static final String ENGAGEMENT = "ENGAGEMENT";
+  public static final String TITLE = "title";
+  public static final String PLACE_HOLDERS = "placeholders";
+  public static final String SUB_CATEGORY = "subCategory";
+  public static final String SUB_TYPE = "subType";
+  public static final String USER_IDS = "userIds";
+  public static final String MESSAGE = "message";
+  public static final String NAME = "name";
 }

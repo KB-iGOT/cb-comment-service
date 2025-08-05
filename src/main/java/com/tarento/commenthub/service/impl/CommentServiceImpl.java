@@ -1,14 +1,16 @@
 package com.tarento.commenthub.service.impl;
 
-import static com.tarento.commenthub.constant.Constants.COMMENT_KEY;
+import static com.tarento.commenthub.constant.Constants.*;
 import static com.tarento.commenthub.utility.CommentsUtility.containsNull;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.uuid.Generators;
 import com.networknt.schema.JsonSchema;
@@ -37,20 +39,14 @@ import com.tarento.commenthub.transactional.utils.ApiResponse;
 import com.tarento.commenthub.utility.Status;
 import java.io.InputStream;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+
+import com.tarento.commenthub.utility.notificationUtill.HelperMethodService;
+import com.tarento.commenthub.utility.notificationUtill.NotificationTriggerService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,6 +103,12 @@ public class CommentServiceImpl implements CommentService {
 
   @Autowired
   private ContentService contentService;
+
+  @Autowired
+  private NotificationTriggerService notificationTriggerService;
+
+  @Autowired
+  private HelperMethodService helperMethodService;
 
   @Override
   public ResponseDTO addFirstCommentToCreateTree(JsonNode payload) {
@@ -322,6 +324,7 @@ public class CommentServiceImpl implements CommentService {
     comment = commentRepository.save(comment);
     redisTemplate.opsForValue()
         .set(COMMENT_KEY + comment.getCommentId(), comment, redisTtl, TimeUnit.SECONDS);
+    sendNotificationToMentionedUser(commentPayload,commentId);
     return comment;
   }
 
@@ -1095,6 +1098,55 @@ public class CommentServiceImpl implements CommentService {
         log.error("Excpetion occured while creating the redis token::", e);
       }
     return "";
+  }
+
+  private void sendNotificationToMentionedUser(JsonNode commentPayload, String commentId) {
+    JsonNode mentionedUsersNode = commentPayload.get(COMMENT_DATA).get(MENTIONED_USERS);
+    List<String> userIdList = new ArrayList<>();
+    if (mentionedUsersNode != null && mentionedUsersNode.isArray() && mentionedUsersNode.size() > 0) {
+      String userId = commentPayload.get(Constants.COMMENT_DATA)
+              .get(Constants.COMMENT_SOURCE).get(Constants.USER_ID).asText();
+      String firstName = helperMethodService.fetchUserFirstName(userId);
+      Map<String, JsonNode> uniqueUserMap = new LinkedHashMap<>();
+      mentionedUsersNode.forEach(node -> {
+        String userid = node.path(Constants.USER_ID).asText(null);
+        if (StringUtils.isNotBlank(userid) && !uniqueUserMap.containsKey(userid)) {
+          uniqueUserMap.put(userid, node);
+        }
+      });
+      ArrayNode cleanArray = objectMapper.createArrayNode();
+      uniqueUserMap.values().forEach(cleanArray::add);
+      ((ObjectNode) commentPayload).set(Constants.MENTIONED_USERS, cleanArray);
+      userIdList.addAll(uniqueUserMap.keySet());
+      if (CollectionUtils.isNotEmpty(userIdList)) {
+        List<String> filteredUserIdList = userIdList.stream()
+                .filter(uniqueId -> !uniqueId.equals(userId))
+                .toList();
+
+        if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
+          String courseId = null;
+          if (commentPayload.hasNonNull(COMMENT_TREE_ID)) {
+            courseId = decodeJwtAndFetchCourseId(commentPayload.get(COMMENT_TREE_ID).asText());
+          } else {
+            courseId = commentPayload.get(COMMENT_TREE_DATA).get(ENTITY_ID).asText();
+          }
+          Map<String,Object> courseNameResponse = contentService.readContentFromCache(courseId,List.of(Constants.NAME));
+          Map<String, Object> notificationData = Map.of(COURSEID, courseId,
+                  COMMENT_ID, commentId);
+          JsonNode hierarchyPathNode = commentPayload.get(HIERARCHY_PATH);
+
+          boolean isReply = (hierarchyPathNode != null && !hierarchyPathNode.isNull() && hierarchyPathNode.isArray() && hierarchyPathNode.size() > 0);
+
+          String eventType = isReply ? LEARN_DISCUSSION_POST_REPLY : LEARN_DISCUSSION_POST_COMMENT;
+          notificationTriggerService.triggerNotification(eventType, ENGAGEMENT, filteredUserIdList, firstName, courseNameResponse.get("name").toString(),notificationData);
+        }
+      }
+    }
+  }
+
+  private String decodeJwtAndFetchCourseId(String commentTreeId) {
+    DecodedJWT jwt = JWT.decode(commentTreeId);
+    return jwt.getClaim(ENTITY_ID).asString();
   }
 
 
