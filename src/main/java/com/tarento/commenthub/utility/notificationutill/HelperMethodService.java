@@ -7,6 +7,7 @@ import com.tarento.commenthub.constant.Constants;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import com.tarento.commenthub.utility.RedisCacheMngr;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +37,6 @@ public class HelperMethodService {
         List<Object> userList = new ArrayList<>();
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.ID, userIds);
-        long startTime = System.currentTimeMillis();
         List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
                 Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
@@ -105,7 +105,7 @@ public class HelperMethodService {
         }
 
         List<Object> cassandraResults = fetchUserFromPrimary(List.of(userId));
-        if (!cassandraResults.isEmpty() && cassandraResults.get(0) instanceof Map) {
+        if (CollectionUtils.isNotEmpty(cassandraResults) && cassandraResults.get(0) instanceof Map) {
             String name = (String) ((Map<?, ?>) cassandraResults.get(0)).get(Constants.FIRST_NAME_KEY);
             if (StringUtils.isNotBlank(name)) return name;
         }

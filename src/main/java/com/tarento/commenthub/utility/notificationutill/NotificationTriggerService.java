@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.commenthub.utility.CbServerProperties;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class NotificationTriggerService {
                 throw new IllegalArgumentException("userIds cannot be null or empty");
             }
 
-            if (message == null || message.isEmpty()) {
+            if (MapUtils.isEmpty(message)) {
                 throw new IllegalArgumentException("message cannot be null or empty");
             }
 
