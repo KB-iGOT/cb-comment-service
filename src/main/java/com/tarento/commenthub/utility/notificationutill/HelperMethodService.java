@@ -1,9 +1,15 @@
 package com.tarento.commenthub.utility.notificationutill;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.commenthub.constant.Constants;
+import com.tarento.commenthub.service.ContentService;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import com.tarento.commenthub.utility.RedisCacheMngr;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +22,8 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.tarento.commenthub.constant.Constants.*;
+
 @Service
 @Slf4j
 public class HelperMethodService {
@@ -25,6 +33,10 @@ public class HelperMethodService {
     private CassandraOperation cassandraOperation;
     @Autowired
     private RedisCacheMngr cacheService;
+    @Autowired
+    private ContentService contentService;
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
 
     public String fetchDataForKeys(String keys) {
 
@@ -118,6 +130,70 @@ public class HelperMethodService {
         }
 
         return "User";
+    }
+
+    public String decodeJwtAndFetchCourseId(String commentTreeId) {
+        DecodedJWT jwt = JWT.decode(commentTreeId);
+        return jwt.getClaim(ENTITY_ID).asString();
+    }
+
+    public List<String> processMentionedUsers(JsonNode data, ObjectNode updateDataNode) {
+        Set<String> existingMentionedUserIds = new HashSet<>();
+        data.withArray(MENTIONED_USERS).forEach(userNode -> {
+            String userId = userNode.path(USER_ID).asText(null);
+            if (StringUtils.isNotBlank(userId)) {
+                existingMentionedUserIds.add(userId);
+            }
+        });
+
+        Set<String> seenUserIdsInRequest = new HashSet<>();
+        List<String> newlyAddedUserIds = new ArrayList<>();
+        ArrayNode uniqueMentionedUsers = objectMapper.createArrayNode();
+        JsonNode incomingMentionedUsers = updateDataNode.path(MENTIONED_USERS);
+
+        if (incomingMentionedUsers != null && incomingMentionedUsers.isArray()) {
+            for (JsonNode userNode : incomingMentionedUsers) {
+                String userId = userNode.path(USER_ID).asText(null);
+                if (StringUtils.isNotBlank(userId) && seenUserIdsInRequest.add(userId)) {
+                    uniqueMentionedUsers.add(userNode);
+                    if (!existingMentionedUserIds.contains(userId)) {
+                        newlyAddedUserIds.add(userId);
+                    }
+                }
+            }
+        }
+
+        updateDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
+        return newlyAddedUserIds;
+    }
+
+    public void sendNotificationToUser(JsonNode commentPayload, String commentId, List<String> userIdList) {
+        String userId = commentPayload.get(COMMENT_DATA)
+                .get(Constants.COMMENT_SOURCE).get(Constants.USER_ID).asText();
+        String firstName = fetchUserFirstName(userId);
+        List<String> filteredUserIdList = userIdList.stream()
+                .filter(uniqueId -> !uniqueId.equals(userId))
+                .toList();
+
+        if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
+            String courseId = null;
+            if (commentPayload.hasNonNull(COMMENT_TREE_ID)) {
+                courseId = decodeJwtAndFetchCourseId(commentPayload.get(COMMENT_TREE_ID).asText());
+            } else {
+                courseId = commentPayload.get(COMMENT_TREE_DATA).get(ENTITY_ID).asText();
+            }
+            Map<String, Object> courseNameResponse = contentService.readContentFromCache(courseId, List.of(Constants.NAME));
+            Map<String, Object> notificationData = Map.of(COURSEID, courseId,
+                    COMMENT_ID, commentId);
+            JsonNode hierarchyPathNode = commentPayload.get(HIERARCHY_PATH);
+
+            boolean isReply = (hierarchyPathNode != null && !hierarchyPathNode.isNull() && hierarchyPathNode.isArray() && hierarchyPathNode.size() > 0);
+
+            String eventType = isReply ? LEARN_DISCUSSION_POST_REPLY : LEARN_DISCUSSION_POST_COMMENT;
+            notificationTriggerService.triggerNotification(eventType, ENGAGEMENT, filteredUserIdList, firstName, courseNameResponse.get("name").toString(), notificationData);
+
+        }
+
     }
 
 }
