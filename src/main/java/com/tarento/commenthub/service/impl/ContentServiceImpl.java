@@ -32,6 +32,7 @@ public class ContentServiceImpl implements ContentService {
   @Autowired
   private CbServerProperties serverConfig;
 
+  @Autowired
   private RestTemplate restTemplate;
 
   @Autowired
