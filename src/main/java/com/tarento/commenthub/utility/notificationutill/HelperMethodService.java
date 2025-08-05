@@ -23,18 +23,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.tarento.commenthub.constant.Constants.*;
-import static com.tarento.commenthub.constant.Constants.COMMENT_DATA;
-import static com.tarento.commenthub.constant.Constants.COMMENT_ID;
-import static com.tarento.commenthub.constant.Constants.COMMENT_TREE_DATA;
-import static com.tarento.commenthub.constant.Constants.COMMENT_TREE_ID;
-import static com.tarento.commenthub.constant.Constants.COURSEID;
-import static com.tarento.commenthub.constant.Constants.ENGAGEMENT;
-import static com.tarento.commenthub.constant.Constants.ENTITY_ID;
-import static com.tarento.commenthub.constant.Constants.HIERARCHY_PATH;
-import static com.tarento.commenthub.constant.Constants.LEARN_DISCUSSION_POST_COMMENT;
-import static com.tarento.commenthub.constant.Constants.LEARN_DISCUSSION_POST_REPLY;
-import static com.tarento.commenthub.constant.Constants.MENTIONED_USERS;
-import static com.tarento.commenthub.constant.Constants.USER_ID;
 
 @Service
 @Slf4j
