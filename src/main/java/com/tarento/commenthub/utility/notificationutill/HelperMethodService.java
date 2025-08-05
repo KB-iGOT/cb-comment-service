@@ -35,11 +35,18 @@ public class HelperMethodService {
     public List<Object> fetchUserFromPrimary(List<String> userIds) {
         log.info("DiscussionServiceImpl::fetchUserFromPrimary: Fetching user data from Cassandra");
         List<Object> userList = new ArrayList<>();
+        if (CollectionUtils.isEmpty(userIds)) {
+            log.warn("User ID list is empty. Skipping fetch from Cassandra.");
+            return userList;
+        }
         Map<String, Object> propertyMap = new HashMap<>();
         propertyMap.put(Constants.ID, userIds);
         List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
                 Constants.KEYSPACE_SUNBIRD, Constants.USER_TABLE, propertyMap,
                 Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
+        if (CollectionUtils.isEmpty(userInfoList)) {
+            return Collections.emptyList();
+        }
         userList = userInfoList.stream()
                 .map(userInfo -> {
                     Map<String, Object> userMap = new HashMap<>();
