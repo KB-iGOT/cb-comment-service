@@ -22,4 +22,6 @@ public class CbServerProperties {
   @Value("${default.content.properties}")
   private String defaultContentProperties;
 
+  @Value("${notification.api.url}")
+  private String notificationApiUrl;
 }
