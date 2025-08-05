@@ -170,8 +170,8 @@ public class CommentServiceImpl implements CommentService {
       commentData.put(Constants.LIKE, commentToBeUpdated.getCommentData().get(Constants.LIKE));
     }
 
-    List<String> newlyAddedMentionedUsers = processMentionedUsers(
-            commentToBeUpdated.getCommentData(), commentData, commentData);
+    List<String> newlyAddedMentionedUsers = helperMethodService.processMentionedUsers(
+            commentToBeUpdated.getCommentData(), commentData);
 
     commentToBeUpdated.setCommentData(commentData);
 
@@ -197,7 +197,7 @@ public class CommentServiceImpl implements CommentService {
 
       // Create and return the response
       ResponseDTO responseDTO = new ResponseDTO(commentTree, updatedComment);
-      sendNotificationToUser(paylaod, String.valueOf(paylaod.get(COMMENT_ID)), newlyAddedMentionedUsers);
+      helperMethodService.sendNotificationToUser(paylaod, String.valueOf(paylaod.get(COMMENT_ID)), newlyAddedMentionedUsers);
       return responseDTO;
     } catch (Exception e) {
       log.error("Error occurred while updating comment or fetching CommentTree for commentId: {}", commentToBeUpdated.getCommentId(), e);
@@ -365,7 +365,7 @@ public class CommentServiceImpl implements CommentService {
       // Store the serialized JSON string in Redis
       redisTemplate.opsForValue()
           .set(COMMENT_KEY + comment.getCommentId(), commentJson, redisTtl, TimeUnit.SECONDS);
-      sendNotificationToUser(commentPayload,commentId,userIdList);
+      helperMethodService.sendNotificationToUser(commentPayload,commentId,userIdList);
       return comment;
     } catch (Exception e) {
       log.error("Error occurred while storing comment in Redis for commentId: {}", comment.getCommentId(), e);
@@ -1212,70 +1212,6 @@ public class CommentServiceImpl implements CommentService {
         log.error("Excpetion occured while creating the redis token::", e);
       }
     return "";
-  }
-
-  private String decodeJwtAndFetchCourseId(String commentTreeId) {
-    DecodedJWT jwt = JWT.decode(commentTreeId);
-    return jwt.getClaim(ENTITY_ID).asString();
-  }
-
-  private List<String> processMentionedUsers(JsonNode data, JsonNode updateData, ObjectNode updateDataNode) {
-    Set<String> existingMentionedUserIds = new HashSet<>();
-    data.withArray(MENTIONED_USERS).forEach(userNode -> {
-      String userId = userNode.path(USER_ID).asText(null);
-      if (StringUtils.isNotBlank(userId)) {
-        existingMentionedUserIds.add(userId);
-      }
-    });
-
-    Set<String> seenUserIdsInRequest = new HashSet<>();
-    List<String> newlyAddedUserIds = new ArrayList<>();
-    ArrayNode uniqueMentionedUsers = objectMapper.createArrayNode();
-    JsonNode incomingMentionedUsers = updateData.path(MENTIONED_USERS);
-
-    if (incomingMentionedUsers != null && incomingMentionedUsers.isArray()) {
-      for (JsonNode userNode : incomingMentionedUsers) {
-        String userId = userNode.path(USER_ID).asText(null);
-        if (StringUtils.isNotBlank(userId) && seenUserIdsInRequest.add(userId)) {
-          uniqueMentionedUsers.add(userNode);
-          if (!existingMentionedUserIds.contains(userId)) {
-            newlyAddedUserIds.add(userId);
-          }
-        }
-      }
-    }
-
-    updateDataNode.set(MENTIONED_USERS, uniqueMentionedUsers);
-    return newlyAddedUserIds;
-  }
-
-  private void sendNotificationToUser(JsonNode commentPayload, String commentId, List<String> userIdList) {
-    String userId = commentPayload.get(COMMENT_DATA)
-            .get(Constants.COMMENT_SOURCE).get(Constants.USER_ID).asText();
-    String firstName = helperMethodService.fetchUserFirstName(userId);
-    List<String> filteredUserIdList = userIdList.stream()
-            .filter(uniqueId -> !uniqueId.equals(userId))
-            .toList();
-
-    if (CollectionUtils.isNotEmpty(filteredUserIdList)) {
-      String courseId = null;
-      if (commentPayload.hasNonNull(COMMENT_TREE_ID)) {
-        courseId = decodeJwtAndFetchCourseId(commentPayload.get(COMMENT_TREE_ID).asText());
-      } else {
-        courseId = commentPayload.get(COMMENT_TREE_DATA).get(ENTITY_ID).asText();
-      }
-      Map<String, Object> courseNameResponse = contentService.readContentFromCache(courseId, List.of(Constants.NAME));
-      Map<String, Object> notificationData = Map.of(COURSEID, courseId,
-              COMMENT_ID, commentId);
-      JsonNode hierarchyPathNode = commentPayload.get(HIERARCHY_PATH);
-
-      boolean isReply = (hierarchyPathNode != null && !hierarchyPathNode.isNull() && hierarchyPathNode.isArray() && hierarchyPathNode.size() > 0);
-
-      String eventType = isReply ? LEARN_DISCUSSION_POST_REPLY : LEARN_DISCUSSION_POST_COMMENT;
-      notificationTriggerService.triggerNotification(eventType, ENGAGEMENT, filteredUserIdList, firstName, courseNameResponse.get("name").toString(), notificationData);
-
-    }
-
   }
 
 }
