@@ -197,7 +197,7 @@ public class CommentServiceImpl implements CommentService {
 
       // Create and return the response
       ResponseDTO responseDTO = new ResponseDTO(commentTree, updatedComment);
-      helperMethodService.sendNotificationToUser(paylaod, String.valueOf(paylaod.get(COMMENT_ID)), newlyAddedMentionedUsers);
+      helperMethodService.sendNotificationToUser(paylaod, paylaod.get(COMMENT_ID).asText(), newlyAddedMentionedUsers);
       return responseDTO;
     } catch (Exception e) {
       log.error("Error occurred while updating comment or fetching CommentTree for commentId: {}", commentToBeUpdated.getCommentId(), e);
