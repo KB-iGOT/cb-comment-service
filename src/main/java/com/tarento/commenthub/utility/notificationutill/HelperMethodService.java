@@ -183,7 +183,7 @@ public class HelperMethodService {
                 courseId = commentPayload.get(COMMENT_TREE_DATA).get(ENTITY_ID).asText();
             }
             Map<String, Object> courseNameResponse = contentService.readContentFromCache(courseId, List.of(Constants.NAME));
-            Map<String, Object> notificationData = Map.of(COURSEID, courseId,
+            Map<String, Object> notificationData = Map.of(ID, courseId,
                     COMMENT_ID, commentId);
             JsonNode hierarchyPathNode = commentPayload.get(HIERARCHY_PATH);
 
