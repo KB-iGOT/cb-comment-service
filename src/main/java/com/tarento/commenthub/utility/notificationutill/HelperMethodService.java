@@ -183,11 +183,16 @@ public class HelperMethodService {
                 courseId = commentPayload.get(COMMENT_TREE_DATA).get(ENTITY_ID).asText();
             }
             Map<String, Object> courseNameResponse = contentService.readContentFromCache(courseId, List.of(Constants.NAME));
-            Map<String, Object> notificationData = Map.of(ID, courseId,
-                    COMMENT_ID, commentId);
+
             JsonNode hierarchyPathNode = commentPayload.get(HIERARCHY_PATH);
 
             boolean isReply = (hierarchyPathNode != null && !hierarchyPathNode.isNull() && hierarchyPathNode.isArray() && hierarchyPathNode.size() > 0);
+
+            if(isReply){
+                commentId = hierarchyPathNode.get(0).asText();
+            }
+            Map<String, Object> notificationData = Map.of(ID, courseId,
+                    COMMENT_ID, commentId);
 
             String eventType = isReply ? LEARN_DISCUSSION_POST_REPLY : LEARN_DISCUSSION_POST_COMMENT;
             notificationTriggerService.triggerNotification(eventType, ENGAGEMENT, filteredUserIdList, firstName, courseNameResponse.get("name").toString(), notificationData);
