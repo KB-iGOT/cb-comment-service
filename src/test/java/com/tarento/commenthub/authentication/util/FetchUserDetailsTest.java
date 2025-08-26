@@ -7,8 +7,8 @@ import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 import java.util.*;
 
@@ -21,17 +21,18 @@ class FetchUserDetailsTest {
     private FetchUserDetails fetchUserDetails;
 
     @Mock
-    private RedisTemplate<String, Object> redisTemplate;
+    private JedisPool jedisPool;
 
     @Mock
     private CassandraOperation cassandraOperation;
 
     @Mock
-    private ValueOperations<String, Object> valueOperations;
+    private Jedis jedis;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        when(jedisPool.getResource()).thenReturn(jedis);
     }
 
     @Test
@@ -39,35 +40,47 @@ class FetchUserDetailsTest {
         List<String> keys = Arrays.asList("user1", "user2");
         String json1 = new ObjectMapper().writeValueAsString(Collections.singletonMap("id", "user1"));
         String json2 = new ObjectMapper().writeValueAsString(Collections.singletonMap("id", "user2"));
-        List<Object> redisValues = Arrays.asList(json1, json2);
+        List<String> redisValues = Arrays.asList(json1, json2);
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.multiGet(keys)).thenReturn(redisValues);
+        when(jedis.mget("user1", "user2")).thenReturn(redisValues);
 
         List<Object> result = fetchUserDetails.fetchDataForKeys(keys);
 
         assertEquals(2, result.size());
         assertTrue(result.get(0) instanceof Map);
         assertEquals("user1", ((Map<?, ?>) result.get(0)).get("id"));
+        verify(jedis).close();
     }
 
     @Test
     void fetchDataForKeys_shouldHandleJsonProcessingErrorGracefully() {
         List<String> keys = List.of("user1");
-        List<Object> redisValues = List.of("invalid_json");
+        List<String> redisValues = List.of("invalid_json");
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.multiGet(keys)).thenReturn(redisValues);
+        when(jedis.mget("user1")).thenReturn(redisValues);
 
         List<Object> result = fetchUserDetails.fetchDataForKeys(keys);
 
-        assertEquals(1, result.size());
-        assertNull(result.get(0));  // Error handled, null returned
+        assertEquals(0, result.size()); // Error handled, no objects added
+        verify(jedis).close();
     }
 
     @Test
-    void fetchUserFromprimary_shouldReturnUserDetailsWithProfileInfo(){
-        String profileJson = "{\"profileImage\":\"img.jpg\",\"employmentDetails\":{\"department\":\"HR\"},\"designation\":\"Manager\"}";
+    void fetchDataForKeys_shouldHandleNullValues() {
+        List<String> keys = List.of("user1");
+        List<String> redisValues = Arrays.asList((String) null);
+
+        when(jedis.mget("user1")).thenReturn(redisValues);
+
+        List<Object> result = fetchUserDetails.fetchDataForKeys(keys);
+
+        assertEquals(0, result.size());
+        verify(jedis).close();
+    }
+
+    @Test
+    void fetchUserFromprimary_shouldReturnUserDetailsWithProfileInfo() {
+        String profileJson = "{\"profileImg\":\"img.jpg\",\"employmentDetails\":{\"department\":\"HR\"},\"designation\":\"Manager\"}";
 
         Map<String, Object> dbRecord = new HashMap<>();
         dbRecord.put(Constants.ID, "user123");
@@ -88,6 +101,45 @@ class FetchUserDetailsTest {
     }
 
     @Test
+    void fetchUserFromprimary_shouldHandleEmptyProfileDetails() {
+        Map<String, Object> dbRecord = new HashMap<>();
+        dbRecord.put(Constants.ID, "user123");
+        dbRecord.put(Constants.FIRST_NAME, "Alice");
+        dbRecord.put(Constants.PROFILE_DETAILS, "");
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any()))
+                .thenReturn(Collections.singletonList(dbRecord));
+
+        List<Object> users = fetchUserDetails.fetchUserFromprimary(List.of("user123"));
+
+        assertEquals(1, users.size());
+        Map<String, Object> userMap = (Map<String, Object>) users.get(0);
+        assertEquals("user123", userMap.get(Constants.USER_ID_KEY));
+        assertEquals("Alice", userMap.get(Constants.FIRST_NAME_KEY));
+        assertFalse(userMap.containsKey(Constants.PROFILE_IMG_KEY));
+    }
+
+    @Test
+    void fetchUserFromprimary_shouldHandleNullProfileDetails() {
+        Map<String, Object> dbRecord = new HashMap<>();
+        dbRecord.put(Constants.ID, "user123");
+        dbRecord.put(Constants.FIRST_NAME, "Alice");
+        dbRecord.put(Constants.PROFILE_DETAILS, null);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any()))
+                .thenReturn(Collections.singletonList(dbRecord));
+
+        List<Object> users = fetchUserDetails.fetchUserFromprimary(List.of("user123"));
+
+        assertEquals(1, users.size());
+        Map<String, Object> userMap = (Map<String, Object>) users.get(0);
+        assertEquals("user123", userMap.get(Constants.USER_ID_KEY));
+        assertEquals("Alice", userMap.get(Constants.FIRST_NAME_KEY));
+    }
+
+    @Test
     void fetchUserFromprimary_shouldHandleInvalidJsonGracefully() {
         Map<String, Object> dbRecord = new HashMap<>();
         dbRecord.put(Constants.ID, "user456");
@@ -98,7 +150,29 @@ class FetchUserDetailsTest {
                 anyString(), anyString(), anyMap(), anyList(), any()))
                 .thenReturn(Collections.singletonList(dbRecord));
 
-        assertThrows(RuntimeException.class, () ->
-                fetchUserDetails.fetchUserFromprimary(List.of("user456")));
+        List<String> users = List.of("user456");
+
+        assertThrows(RuntimeException.class,
+                () -> fetchUserDetails.fetchUserFromprimary(users));
+
+    }
+
+    @Test
+    void fetchUserFromprimary_shouldHandleEmptyProfileDetailsMap() {
+        Map<String, Object> dbRecord = new HashMap<>();
+        dbRecord.put(Constants.ID, "user123");
+        dbRecord.put(Constants.FIRST_NAME, "Alice");
+        dbRecord.put(Constants.PROFILE_DETAILS, "{}");
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                anyString(), anyString(), anyMap(), anyList(), any()))
+                .thenReturn(Collections.singletonList(dbRecord));
+
+        List<Object> users = fetchUserDetails.fetchUserFromprimary(List.of("user123"));
+
+        assertEquals(1, users.size());
+        Map<String, Object> userMap = (Map<String, Object>) users.get(0);
+        assertEquals("user123", userMap.get(Constants.USER_ID_KEY));
+        assertEquals("Alice", userMap.get(Constants.FIRST_NAME_KEY));
     }
 }
