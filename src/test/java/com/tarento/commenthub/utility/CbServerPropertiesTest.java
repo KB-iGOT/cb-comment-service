@@ -9,7 +9,7 @@ import org.springframework.test.context.TestPropertySource;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = CbServerProperties.class)
-@TestPropertySource(properties = {"content-service-host=http://localhost:8080", "content-read-endpoint=/api/content/v1/read", "content-read-endpoint-fields=title,description", "default.content.properties=title,description,status"})
+@TestPropertySource(properties = {"content-service-host=http://localhost:8080", "content-read-endpoint=/api/content/v1/read", "content-read-endpoint-fields=title,description", "default.content.properties=title,description,status", "notification.api.url=http://localhost:8081/notify"})
 class CbServerPropertiesTest {
 
     @Autowired
@@ -21,5 +21,6 @@ class CbServerPropertiesTest {
         assertEquals("/api/content/v1/read", cbServerProperties.getContentReadEndPoint());
         assertEquals("title,description", cbServerProperties.getContentReadEndPointFields());
         assertEquals("title,description,status", cbServerProperties.getDefaultContentProperties());
+        assertEquals("http://localhost:8081/notify", cbServerProperties.getNotificationApiUrl());
     }
 }

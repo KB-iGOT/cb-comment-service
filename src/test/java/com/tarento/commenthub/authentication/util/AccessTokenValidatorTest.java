@@ -1,15 +1,19 @@
 package com.tarento.commenthub.authentication.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tarento.commenthub.authentication.model.KeyData;
 import com.tarento.commenthub.constant.Constants;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.common.util.Time;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.util.Base64;
@@ -176,4 +180,89 @@ class AccessTokenValidatorTest {
 
         return String.join(".", header, body, signature);
     }
+
+    @Test
+    void testCheckIss_validIssuer() throws Exception {
+        // Arrange
+        Field realmUrlField = AccessTokenValidator.class.getDeclaredField("REALM_URL");
+        realmUrlField.setAccessible(true);
+        String validIssuer = (String) realmUrlField.get(null);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("iss", validIssuer);
+        payload.put(Constants.SUB, "user:abc");
+        payload.put("exp", Time.currentTime() + 5000);
+
+        String token = mockToken(payload);
+
+        // Mock KeyManager -> return a valid KeyData
+        PublicKey mockPublicKey = mock(PublicKey.class);
+        KeyData keyData = new KeyData("testKeyId", mockPublicKey);
+        when(keyManager.getPublicKey(anyString())).thenReturn(keyData);
+
+        // Also mock CryptoUtil.verifyRSASign to succeed
+        try (MockedStatic<CryptoUtil> cryptoUtilMock = mockStatic(CryptoUtil.class)) {
+            cryptoUtilMock.when(() ->
+                    CryptoUtil.verifyRSASign(anyString(), any(), eq(mockPublicKey), eq(Constants.SHA_256_WITH_RSA))
+            ).thenReturn(true);
+
+            // Act
+            String result = accessTokenValidator.verifyUserToken(token);
+
+            // Assert
+            assertEquals("abc", result);
+        }
+    }
+
+
+    private boolean invokeIsExpired(int exp) {
+        try {
+            Method method = AccessTokenValidator.class.getDeclaredMethod("isExpired", Integer.class);
+            method.setAccessible(true);
+            return (boolean) method.invoke(accessTokenValidator, exp);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @Test
+    void testDecodeFromBase64() throws Exception {
+        Method method = AccessTokenValidator.class.getDeclaredMethod("decodeFromBase64", String.class);
+        method.setAccessible(true);
+        byte[] result = (byte[]) method.invoke(accessTokenValidator, "aGVsbG8="); // "hello"
+        assertEquals("hello", new String(result));
+    }
+
+    @Test
+    void testValidateToken_invalidJsonHeader() throws Exception {
+        // Header not JSON
+        String badHeader = Base64.getUrlEncoder().withoutPadding().encodeToString("not-json".getBytes());
+        String body = Base64.getUrlEncoder().withoutPadding().encodeToString("{}".getBytes());
+        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString("sig".getBytes());
+
+        String token = badHeader + "." + body + "." + sig;
+        String result = accessTokenValidator.verifyUserToken(token);
+        assertEquals(Constants.UNAUTHORIZED_USER, result);
+    }
+
+    @Test
+    void testValidateToken_signatureThrowsException() throws Exception {
+        // Arrange a valid-looking token
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("iss", "http://validissuer");
+        payload.put(Constants.SUB, "user:valid");
+        payload.put("exp", Time.currentTime() + 9999);
+        String token = mockToken(payload);
+
+        // Force CryptoUtil to throw
+        try (MockedStatic<CryptoUtil> cryptoMock = mockStatic(CryptoUtil.class)) {
+            cryptoMock.when(() -> CryptoUtil.verifyRSASign(any(), any(), any(), any()))
+                    .thenThrow(new RuntimeException("crypto error"));
+
+            String result = accessTokenValidator.verifyUserToken(token);
+            assertEquals(Constants.UNAUTHORIZED_USER, result);
+        }
+    }
+
 }

@@ -16,6 +16,17 @@ class CommentExceptionTest {
         assertNull(exception.getMessage());
         assertNull(exception.getHttpStatusCode());
         assertNull(exception.getErrors());
+
+        // Explicitly call setters
+        exception.setCode("SET001");
+        exception.setMessage("set message");
+        exception.setHttpStatusCode(500);
+        exception.setErrors(Map.of("f", "e"));
+
+        assertEquals("SET001", exception.getCode());
+        assertEquals("set message", exception.getMessage());
+        assertEquals(500, exception.getHttpStatusCode());
+        assertEquals(Map.of("f", "e"), exception.getErrors());
     }
 
     @Test
@@ -51,5 +62,19 @@ class CommentExceptionTest {
         assertNull(exception.getCode());
         assertNull(exception.getHttpStatusCode());
     }
+
+    @Test
+    void testToStringAndRuntimeBehavior() {
+        CommentException exception = new CommentException("CODEX", "Runtime test", 503);
+
+        // Default Object.toString() → just make sure it returns something
+        String str = exception.toString();
+        assertNotNull(str);
+        assertFalse(str.isEmpty());
+
+        // RuntimeException contract: getMessage() returns our assigned message
+        assertEquals("Runtime test", exception.getMessage());
+    }
+
 }
 
