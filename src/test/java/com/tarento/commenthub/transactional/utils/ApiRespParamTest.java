@@ -1,6 +1,5 @@
-package com.tarento.commenthub.transactional.cassandrautils.utils;
+package com.tarento.commenthub.transactional.utils;
 
-import com.tarento.commenthub.transactional.utils.ApiRespParam;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

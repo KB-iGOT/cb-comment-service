@@ -159,4 +159,78 @@ class CassandraConnectionManagerImplTest {
         // Act & Assert
         assertThrows(CustomException.class, () -> manager.getTableList("missing"));
     }
+
+
+    @Test
+    void testGetConsistencyLevel_blank_returnsNull() {
+        try (MockedStatic<PropertiesCache> staticMock = mockStatic(PropertiesCache.class)) {
+            staticMock.when(PropertiesCache::getInstance).thenReturn(propertiesCache);
+            when(propertiesCache.readProperty(Constants.SUNBIRD_CASSANDRA_CONSISTENCY_LEVEL))
+                    .thenReturn("");
+
+            assertNull(invokeGetConsistencyLevel());
+        }
+    }
+
+
+    @Test
+    void testGetSession_reuseExisting() throws Exception {
+        CqlSession mockSession = mock(CqlSession.class);
+        when(mockSession.isClosed()).thenReturn(false);
+        getCassandraSessionMap().put("ks1", mockSession);
+        CassandraConnectionManagerImpl manager =
+                mock(CassandraConnectionManagerImpl.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        CqlSession returned = manager.getSession("ks1");
+        assertSame(mockSession, returned);
+    }
+
+    @Test
+    void testGetTableList_keyspaceNotFound_throws() throws Exception {
+        CqlSession mockSession = mock(CqlSession.class);
+        Metadata mockMetadata = mock(Metadata.class);
+        when(mockSession.getMetadata()).thenReturn(mockMetadata);
+        when(mockMetadata.getKeyspace("missing")).thenReturn(Optional.empty());
+        setStaticSession(mockSession);
+        CassandraConnectionManagerImpl manager =
+                mock(CassandraConnectionManagerImpl.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
+        assertThrows(CustomException.class, () -> manager.getTableList("missing"));
+    }
+
+    @Test
+    void testResourceCleanUp_closesSessions() throws Exception {
+        CqlSession mockSession1 = mock(CqlSession.class);
+        CqlSession mockSession2 = mock(CqlSession.class);
+        getCassandraSessionMap().put("ks1", mockSession1);
+        setStaticSession(mockSession2);
+        CassandraConnectionManagerImpl.ResourceCleanUp cleanup = new CassandraConnectionManagerImpl.ResourceCleanUp();
+        cleanup.run();
+        verify(mockSession1).close();
+        verify(mockSession2).close();
+    }
+
+    @Test
+    void testResourceCleanUp_noSessionsDoesNotThrow() throws Exception {
+        getCassandraSessionMap().clear();
+        setStaticSession(null);
+        CassandraConnectionManagerImpl.ResourceCleanUp cleanup = new CassandraConnectionManagerImpl.ResourceCleanUp();
+        assertDoesNotThrow(cleanup::run);
+    }
+
+    @Test
+    void testRegisterShutDownHook() {
+        assertDoesNotThrow(CassandraConnectionManagerImpl::registerShutDownHook);
+    }
+
+    private void setStaticSession(CqlSession session) throws Exception {
+        Field field = CassandraConnectionManagerImpl.class.getDeclaredField("session");
+        field.setAccessible(true);
+        field.set(null, session);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, CqlSession> getCassandraSessionMap() throws Exception {
+        Field field = CassandraConnectionManagerImpl.class.getDeclaredField("cassandraSessionMap");
+        field.setAccessible(true);
+        return (Map<String, CqlSession>) field.get(null);
+    }
 }

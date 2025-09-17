@@ -82,4 +82,179 @@ public class ErrorResponseTest {
         assertNotNull(response1.toString());
         assertTrue(response1.toString().contains("E1"));
     }
+
+    @Test
+    void testBuilderWithNulls_defaultsHandled() {
+        ErrorResponse response = ErrorResponse.builder().build();
+
+        assertNull(response.getCode());
+        assertNull(response.getMessage());
+        assertNull(response.getErrors());
+        assertNull(response.getHttpStatusCode());
+    }
+
+    @Test
+    void testEquals_selfAndNullAndDifferentType() {
+        ErrorResponse response = ErrorResponse.builder()
+                .code("X1")
+                .message("msg")
+                .errors(Map.of())
+                .httpStatusCode(100)
+                .build();
+
+        // self comparison (should be true)
+        assertEquals(response, response);
+
+        // null comparison (should be false)
+        assertNotEquals(response, null);
+
+        // different type comparison (should be false)
+        assertNotEquals(response, "some string");
+    }
+
+    @Test
+    void testEquals_differentFieldValues() {
+        ErrorResponse base = ErrorResponse.builder()
+                .code("A")
+                .message("msg")
+                .errors(Map.of("f", "e"))
+                .httpStatusCode(200)
+                .build();
+
+        // Different code
+        ErrorResponse diffCode = ErrorResponse.builder()
+                .code("B")
+                .message("msg")
+                .errors(Map.of("f", "e"))
+                .httpStatusCode(200)
+                .build();
+        assertNotEquals(base, diffCode);
+
+        // Different message
+        ErrorResponse diffMsg = ErrorResponse.builder()
+                .code("A")
+                .message("different")
+                .errors(Map.of("f", "e"))
+                .httpStatusCode(200)
+                .build();
+        assertNotEquals(base, diffMsg);
+
+        // Different errors
+        ErrorResponse diffErrors = ErrorResponse.builder()
+                .code("A")
+                .message("msg")
+                .errors(Map.of("other", "x"))
+                .httpStatusCode(200)
+                .build();
+        assertNotEquals(base, diffErrors);
+
+        // Different httpStatusCode
+        ErrorResponse diffStatus = ErrorResponse.builder()
+                .code("A")
+                .message("msg")
+                .errors(Map.of("f", "e"))
+                .httpStatusCode(500)
+                .build();
+        assertNotEquals(base, diffStatus);
+    }
+
+    @Test
+    void testHashCode_consistency() {
+        ErrorResponse response = ErrorResponse.builder()
+                .code("HASH")
+                .message("Check hash")
+                .errors(Map.of("k", "v"))
+                .httpStatusCode(123)
+                .build();
+
+        int hash1 = response.hashCode();
+        int hash2 = response.hashCode();
+
+        assertEquals(hash1, hash2); // hashCode must be consistent
+    }
+
+    @Test
+    void testEquals_differentCodeOnly() {
+        ErrorResponse r1 = ErrorResponse.builder()
+                .code("A").message("msg").errors(Map.of("f","e")).httpStatusCode(200).build();
+        ErrorResponse r2 = ErrorResponse.builder()
+                .code("B").message("msg").errors(Map.of("f","e")).httpStatusCode(200).build();
+        assertNotEquals(r1, r2);  // covers code mismatch
+    }
+
+    @Test
+    void testEquals_differentMessageOnly() {
+        ErrorResponse r1 = ErrorResponse.builder()
+                .code("A").message("msg").errors(Map.of("f","e")).httpStatusCode(200).build();
+        ErrorResponse r2 = ErrorResponse.builder()
+                .code("A").message("other").errors(Map.of("f","e")).httpStatusCode(200).build();
+        assertNotEquals(r1, r2);  // covers message mismatch
+    }
+
+    @Test
+    void testEquals_differentErrorsOnly() {
+        ErrorResponse r1 = ErrorResponse.builder()
+                .code("A").message("msg").errors(Map.of("f","e")).httpStatusCode(200).build();
+        ErrorResponse r2 = ErrorResponse.builder()
+                .code("A").message("msg").errors(Map.of("x","y")).httpStatusCode(200).build();
+        assertNotEquals(r1, r2);  // covers errors mismatch
+    }
+
+    @Test
+    void testEquals_differentHttpStatusOnly() {
+        ErrorResponse r1 = ErrorResponse.builder()
+                .code("A").message("msg").errors(Map.of("f","e")).httpStatusCode(200).build();
+        ErrorResponse r2 = ErrorResponse.builder()
+                .code("A").message("msg").errors(Map.of("f","e")).httpStatusCode(500).build();
+        assertNotEquals(r1, r2);  // covers httpStatus mismatch
+    }
+
+
+
+    @Test
+    void testEquals_withNullFields() {
+        ErrorResponse r1 = ErrorResponse.builder().build(); // all null
+        ErrorResponse r2 = ErrorResponse.builder().build();
+
+        assertEquals(r1, r2); // both null → equal
+
+        ErrorResponse r3 = ErrorResponse.builder().code("X").build();
+        assertNotEquals(r1, r3); // null vs non-null field
+    }
+
+    @Test
+    void testToString_withNulls() {
+        ErrorResponse response = ErrorResponse.builder().build();
+        String str = response.toString();
+        assertNotNull(str);
+        assertTrue(str.contains("null")); // verifies nulls are represented
+    }
+
+
+    @Test
+    void testEqualsWithNullFields() {
+        ErrorResponse r1 = ErrorResponse.builder().build(); // all null
+        ErrorResponse r2 = ErrorResponse.builder().build(); // all null
+        ErrorResponse r3 = ErrorResponse.builder().code("X").build();
+
+        assertEquals(r1, r2);     // both empty → equal
+        assertNotEquals(r1, r3);  // null vs non-null
+    }
+
+    @Test
+    void testHashCodeWithNullFields() {
+        ErrorResponse r1 = ErrorResponse.builder().build();
+        ErrorResponse r2 = ErrorResponse.builder().build();
+
+        assertEquals(r1.hashCode(), r2.hashCode()); // consistent even with nulls
+    }
+
+    @Test
+    void testToStringWithNulls() {
+        ErrorResponse response = ErrorResponse.builder().build();
+        String str = response.toString();
+
+        assertNotNull(str);
+        assertTrue(str.contains("null")); // confirms nulls are shown
+    }
 }
