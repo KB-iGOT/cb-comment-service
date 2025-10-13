@@ -214,18 +214,6 @@ class AccessTokenValidatorTest {
         }
     }
 
-
-    private boolean invokeIsExpired(int exp) {
-        try {
-            Method method = AccessTokenValidator.class.getDeclaredMethod("isExpired", Integer.class);
-            method.setAccessible(true);
-            return (boolean) method.invoke(accessTokenValidator, exp);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
     @Test
     void testDecodeFromBase64() throws Exception {
         Method method = AccessTokenValidator.class.getDeclaredMethod("decodeFromBase64", String.class);
@@ -235,7 +223,7 @@ class AccessTokenValidatorTest {
     }
 
     @Test
-    void testValidateToken_invalidJsonHeader() throws Exception {
+    void testValidateToken_invalidJsonHeader() {
         // Header not JSON
         String badHeader = Base64.getUrlEncoder().withoutPadding().encodeToString("not-json".getBytes());
         String body = Base64.getUrlEncoder().withoutPadding().encodeToString("{}".getBytes());

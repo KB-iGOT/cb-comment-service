@@ -181,17 +181,7 @@ public class CommentServiceImpl implements CommentService {
       // Save the updated comment to the repository
       Comment updatedComment = commentRepository.save(commentToBeUpdated);
 
-      try {
-        // Convert updatedComment to JSON string
-        String commentJson = objectMapper.writeValueAsString(updatedComment);
-
-        // Store the stringified comment in Redis
-        redisTemplate.opsForValue()
-                .set(COMMENT_KEY + commentToBeUpdated.getCommentId(), commentJson, redisTtl, TimeUnit.SECONDS);
-      } catch (Exception e) {
-        // Handle JSON conversion errors
-        log.error("Error occurred while updating comment details in redis", e);
-      }
+      updateCommentInRedis(updatedComment);
       // Fetch the updated CommentTree
       CommentTree commentTree = commentTreeService.getCommentTreeById(paylaod.get(Constants.COMMENT_TREE_ID).asText());
 
@@ -201,7 +191,7 @@ public class CommentServiceImpl implements CommentService {
       return responseDTO;
     } catch (Exception e) {
       log.error("Error occurred while updating comment or fetching CommentTree for commentId: {}", commentToBeUpdated.getCommentId(), e);
-      throw new RuntimeException("Failed to update comment or fetch CommentTree", e);
+      throw new CommentException(Constants.ERROR,"Failed to update comment or fetch CommentTree", e);
     }
   }
 
@@ -255,7 +245,7 @@ public class CommentServiceImpl implements CommentService {
       if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
         userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
         if (userList == null || userList.isEmpty()) {
-          log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+          log.info(Constants.FETCH_USER_DETAILS_LOG);
           // Handle the case where userList is empty or null
           userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
         }
@@ -267,7 +257,7 @@ public class CommentServiceImpl implements CommentService {
       if (taggedUserList != null && !taggedUserList.isEmpty()) {
         taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
         if (taggedUsers == null || taggedUsers.isEmpty()) {
-          log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+          log.info(Constants.FETCH_TAGGED_USER_DETAILS_LOG);
           // Handle the case where taggedUsers is empty or null
           taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
         }
@@ -318,7 +308,7 @@ public class CommentServiceImpl implements CommentService {
       commentTreeService.updateCommentTreeForDeletedComment(commentId, commentTreeIdentifierDTO, parentId);
     } catch (Exception e) {
       log.error("Error occurred while deleting comment from Redis or updating CommentTree for commentId: {}", commentId, e);
-      throw new RuntimeException("Failed to delete comment or update CommentTree", e);
+      throw new CommentException(Constants.ERROR,"Failed to delete comment or update CommentTree", e);
     }
     return comment;
   }
@@ -369,7 +359,7 @@ public class CommentServiceImpl implements CommentService {
       return comment;
     } catch (Exception e) {
       log.error("Error occurred while storing comment in Redis for commentId: {}", comment.getCommentId(), e);
-      throw new RuntimeException("Failed to store comment in Redis", e);
+      throw new CommentException(Constants.ERROR,"Failed to store comment in Redis", e);
     }
   }
 
@@ -480,7 +470,7 @@ public class CommentServiceImpl implements CommentService {
       return response;
     } catch (Exception e) {
       log.error("error occured while liking a comment::" + String.valueOf(e));
-      throw new RuntimeException(e);
+      throw new CommentException(e);
     }
   }
 
@@ -551,7 +541,7 @@ public class CommentServiceImpl implements CommentService {
         // Deserialize JSON string to Map
         } catch (JsonProcessingException e) {
         log.error("Error deserializing JSON from Redis", e);
-        throw new RuntimeException("Failed to deserialize JSON", e);
+        throw new CommentException(Constants.ERROR,"Failed to deserialize JSON", e);
       }
     } else {
       resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), searchCriteria.isEnrichedUser(), version);
@@ -564,7 +554,7 @@ public class CommentServiceImpl implements CommentService {
             .set(generateRedisJwtTokenKey(commentTreeId, offset, limit), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
       }
       response.setResult(resultMap);
       return response;
@@ -581,7 +571,7 @@ public class CommentServiceImpl implements CommentService {
             .set(generateRedisJwtTokenKey(commentTreeId, offset, limit), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
       }
       response.setResult(resultMap);
       return response;
@@ -631,7 +621,7 @@ public class CommentServiceImpl implements CommentService {
     if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+        log.info(Constants.FETCH_USER_DETAILS_LOG);
         // Handle the case where userList is empty or null
         userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
       }
@@ -643,7 +633,7 @@ public class CommentServiceImpl implements CommentService {
     if (taggedUserList != null && !taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+        log.info(Constants.FETCH_TAGGED_USER_DETAILS_LOG);
         // Handle the case where taggedUsers is empty or null
         taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
       }
@@ -734,7 +724,7 @@ public class CommentServiceImpl implements CommentService {
     if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+        log.info(Constants.FETCH_USER_DETAILS_LOG);
         // Handle the case where userList is empty or null
         userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
       }
@@ -746,7 +736,7 @@ public class CommentServiceImpl implements CommentService {
     if (taggedUserList != null && !taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+        log.info(Constants.FETCH_TAGGED_USER_DETAILS_LOG);
         // Handle the case where taggedUsers is empty or null
         taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
       }
@@ -1009,7 +999,7 @@ public class CommentServiceImpl implements CommentService {
     if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+        log.info(Constants.FETCH_USER_DETAILS_LOG);
         // Handle the case where userList is empty or null
         userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
       }
@@ -1021,7 +1011,7 @@ public class CommentServiceImpl implements CommentService {
     if (taggedUserList != null && !taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+        log.info(Constants.FETCH_TAGGED_USER_DETAILS_LOG);
         // Handle the case where taggedUsers is empty or null
         taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
       }
@@ -1191,7 +1181,7 @@ public class CommentServiceImpl implements CommentService {
                 }
               }
             } catch (JsonProcessingException e) {
-              throw new RuntimeException(e);
+              throw new CommentException(e);
             }
           }
 
@@ -1214,4 +1204,17 @@ public class CommentServiceImpl implements CommentService {
     return "";
   }
 
+    private void updateCommentInRedis(Comment comment) {
+        try {
+            // Convert updatedComment to JSON string
+            String commentJson = objectMapper.writeValueAsString(comment);
+
+            // Store the stringified comment in Redis
+            redisTemplate.opsForValue()
+                    .set(COMMENT_KEY + comment.getCommentId(), commentJson, redisTtl, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            // Handle JSON conversion errors
+            log.error("Error occurred while updating comment details in redis", e);
+        }
+    }
 }

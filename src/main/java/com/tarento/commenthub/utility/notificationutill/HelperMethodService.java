@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.commenthub.constant.Constants;
+import com.tarento.commenthub.exception.CommentException;
 import com.tarento.commenthub.service.ContentService;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import com.tarento.commenthub.utility.RedisCacheMngr;
@@ -39,9 +40,7 @@ public class HelperMethodService {
     private NotificationTriggerService notificationTriggerService;
 
     public String fetchDataForKeys(String keys) {
-
-        String values = cacheService.getContentFromCache(keys);
-        return values;
+        return cacheService.getContentFromCache(keys);
     }
 
     public List<Object> fetchUserFromPrimary(List<String> userIds) {
@@ -82,16 +81,16 @@ public class HelperMethodService {
                             // Check for profile image and add to userMap if available
                             if (MapUtils.isNotEmpty(profileDetailsMap)) {
                                 if (profileDetailsMap.containsKey(Constants.PROFILE_IMG) && StringUtils.isNotBlank((String) profileDetailsMap.get(Constants.PROFILE_IMG))) {
-                                    userMap.put(Constants.PROFILE_IMG_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
+                                    userMap.put(Constants.PROFILE_IMG_KEY, profileDetailsMap.get(Constants.PROFILE_IMG));
                                 }
                                 if (profileDetailsMap.containsKey(Constants.DESIGNATION_KEY) && StringUtils.isNotEmpty((String) profileDetailsMap.get(Constants.DESIGNATION_KEY))) {
 
-                                    userMap.put(Constants.DESIGNATION_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
+                                    userMap.put(Constants.DESIGNATION_KEY, profileDetailsMap.get(Constants.PROFILE_IMG));
                                 }
                                 if (profileDetailsMap.containsKey(Constants.EMPLOYMENT_DETAILS) && MapUtils.isNotEmpty(
                                         (Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)) && ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).containsKey(Constants.DEPARTMENT_KEY) && StringUtils.isNotBlank(
                                         (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY))) {
-                                    userMap.put(Constants.DEPARTMENT, (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
+                                    userMap.put(Constants.DEPARTMENT, ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
 
                                 }
                             }
@@ -114,12 +113,12 @@ public class HelperMethodService {
                 resultMap = objectMapper.readValue(redisResults, new TypeReference<Map<String, Object>>() {
                 });
             } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+                throw new CommentException(e);
             }
             Object nameObj = resultMap.get(Constants.FIRST_NAME_KEY);
 
-            if (nameObj instanceof String && StringUtils.isNotBlank((String) nameObj)) {
-                return (String) nameObj;
+            if (nameObj instanceof String string && StringUtils.isNotBlank(string)) {
+                return string;
             }
         }
 

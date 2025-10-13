@@ -151,4 +151,7 @@ public class Constants {
   public static final String NAME = "name";
   public static final String MENTIONED_USERS = "mentionedUsers";
   public static final String USER_TABLE = "user";
+  public static final String FETCH_USER_DETAILS_LOG = "CommentServiceImpl::getComments::fetching userDetails from primary";
+  public static final String FETCH_TAGGED_USER_DETAILS_LOG = "CommentServiceImpl::getComments::fetching taggedUserDetails from primary";
+  public static final String SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG = "Error serializing resultMap to JSON for Redis storage";
 }

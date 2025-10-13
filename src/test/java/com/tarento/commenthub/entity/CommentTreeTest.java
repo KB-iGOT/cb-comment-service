@@ -67,7 +67,7 @@ public class CommentTreeTest {
         assertNotEquals(tree1.hashCode(), tree2.hashCode());
 
         assertNotEquals(tree1, tree3);
-        assertNotEquals(tree1, null);
+        assertNotEquals( null,tree1);
     }
 
     @Test

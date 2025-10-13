@@ -88,8 +88,8 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         redisTemplate.opsForValue()
             .set(commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        log.error(Constants.SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG, e);
+        throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
       }
       return commentTree;
     } catch (Exception e) {
@@ -161,8 +161,8 @@ public class CommentTreeServiceImpl implements CommentTreeService {
           redisTemplate.opsForValue()
               .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
         } catch (JsonProcessingException e) {
-          log.error("Error serializing resultMap to JSON for Redis storage", e);
-          throw new RuntimeException("Failed to serialize resultMap", e);
+          log.error(Constants.SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG, e);
+          throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
         }
         return persistedCommentTree;
       } catch (Exception e) {
@@ -301,8 +301,8 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         redisTemplate.opsForValue()
             .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeToBeUpdated.getCommentTreeId(), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        log.error(Constants.SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG, e);
+        throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
       }
       log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
           commentId, commentTreeToBeUpdated.getCommentTreeId());
