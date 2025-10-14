@@ -115,9 +115,9 @@ public class HelperMethodService {
             } catch (JsonProcessingException e) {
                 throw new CommentException(e);
             }
-            Object nameObj = resultMap.get(Constants.FIRST_NAME_KEY);
+            Object firstName = resultMap.get(Constants.FIRST_NAME_KEY);
 
-            if (nameObj instanceof String string && StringUtils.isNotBlank(string)) {
+            if (firstName instanceof String string && StringUtils.isNotBlank(string)) {
                 return string;
             }
         }

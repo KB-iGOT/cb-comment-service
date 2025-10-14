@@ -8,7 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class UserCourseCommentLikeTest {
+class UserCourseCommentLikeTest {
     @Test
     void testNoArgsConstructorAndSettersAndGetters() {
         UserCourseCommentLike like = new UserCourseCommentLike();

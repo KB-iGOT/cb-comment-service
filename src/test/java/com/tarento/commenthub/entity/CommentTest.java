@@ -8,8 +8,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-public class CommentTest {
+class CommentTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test

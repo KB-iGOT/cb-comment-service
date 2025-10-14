@@ -7,7 +7,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ErrorResponseTest {
+class ErrorResponseTest {
     @Test
     void testBuilderAndGetters() {
         Map<String, String> errors = new HashMap<>();

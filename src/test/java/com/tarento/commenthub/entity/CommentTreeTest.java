@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CommentTreeTest {
+class CommentTreeTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
