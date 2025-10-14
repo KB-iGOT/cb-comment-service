@@ -27,7 +27,7 @@ public class RestExceptionHandling {
               : HttpStatus.OK.value())
           .build();
       if (StringUtils.isNotBlank(commentException.getMessage())) {
-        log.error(commentException.getMessage());
+        log.error(commentException.getMessage(),ex);
       }
 
       return new ResponseEntity<>(errorResponse, status);

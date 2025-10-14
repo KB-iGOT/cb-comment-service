@@ -170,9 +170,9 @@ class AccessTokenValidatorTest {
     }
 
     private String mockToken(Map<String, Object> payload) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        String headerJson = mapper.writeValueAsString(Collections.singletonMap("kid", "key1"));
-        String bodyJson = mapper.writeValueAsString(payload);
+        ObjectMapper objectMapper = new ObjectMapper();
+        String headerJson = objectMapper.writeValueAsString(Collections.singletonMap("kid", "key1"));
+        String bodyJson = objectMapper.writeValueAsString(payload);
 
         String header = Base64.getUrlEncoder().withoutPadding().encodeToString(headerJson.getBytes(StandardCharsets.UTF_8));
         String body = Base64.getUrlEncoder().withoutPadding().encodeToString(bodyJson.getBytes(StandardCharsets.UTF_8));
@@ -196,14 +196,14 @@ class AccessTokenValidatorTest {
         String token = mockToken(payload);
 
         // Mock KeyManager -> return a valid KeyData
-        PublicKey mockPublicKey = mock(PublicKey.class);
-        KeyData keyData = new KeyData("testKeyId", mockPublicKey);
+        PublicKey mockedPublicKey = mock(PublicKey.class);
+        KeyData keyData = new KeyData("testKeyId", mockedPublicKey);
         when(keyManager.getPublicKey(anyString())).thenReturn(keyData);
 
         // Also mock CryptoUtil.verifyRSASign to succeed
         try (MockedStatic<CryptoUtil> cryptoUtilMock = mockStatic(CryptoUtil.class)) {
             cryptoUtilMock.when(() ->
-                    CryptoUtil.verifyRSASign(anyString(), any(), eq(mockPublicKey), eq(Constants.SHA_256_WITH_RSA))
+                    CryptoUtil.verifyRSASign(anyString(), any(), eq(mockedPublicKey), eq(Constants.SHA_256_WITH_RSA))
             ).thenReturn(true);
 
             // Act

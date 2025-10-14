@@ -154,4 +154,5 @@ public class Constants {
   public static final String FETCH_USER_DETAILS_LOG = "CommentServiceImpl::getComments::fetching userDetails from primary";
   public static final String FETCH_TAGGED_USER_DETAILS_LOG = "CommentServiceImpl::getComments::fetching taggedUserDetails from primary";
   public static final String SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG = "Error serializing resultMap to JSON for Redis storage";
+  public static final String COMMENT_TREE_NOT_FOUND = "CommentTree Not found";
 }
