@@ -13,28 +13,28 @@ public class RestExceptionHandling {
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity handleException(Exception ex) {
-    log.debug("RestExceptionHandler::handleException::" + ex);
-    HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-    ErrorResponse errorResponse = null;
-    if (ex instanceof CommentException) {
-      CommentException commentException = (CommentException) ex;
-      status = HttpStatus.OK;
-      errorResponse = ErrorResponse.builder()
-          .code(commentException.getCode())
-          .message(commentException.getMessage())
-          .httpStatusCode(commentException.getHttpStatusCode() != null
-              ? commentException.getHttpStatusCode()
-              : HttpStatus.OK.value())
-          .build();
-      if (StringUtils.isNotBlank(commentException.getMessage())) {
-        log.error(commentException.getMessage(),ex);
-      }
+      log.debug("RestExceptionHandler::handleException::" + ex);
+      HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+      ErrorResponse errorResponse = null;
+      if (ex instanceof CommentException) {
+          CommentException commentException = (CommentException) ex;
+          status = HttpStatus.OK;
+          errorResponse = ErrorResponse.builder()
+                  .code(commentException.getCode())
+                  .message(commentException.getMessage())
+                  .httpStatusCode(commentException.getHttpStatusCode() != null
+                          ? commentException.getHttpStatusCode()
+                          : HttpStatus.OK.value())
+                  .build();
+          if (StringUtils.isNotBlank(commentException.getMessage())) {
+              log.error(commentException.getMessage(), ex);
+          }
 
+          return new ResponseEntity<>(errorResponse, status);
+      }
+      errorResponse = ErrorResponse.builder()
+              .code(ex.getMessage()).build();
       return new ResponseEntity<>(errorResponse, status);
-    }
-    errorResponse = ErrorResponse.builder()
-        .code(ex.getMessage()).build();
-    return new ResponseEntity<>(errorResponse, status);
   }
 
 }

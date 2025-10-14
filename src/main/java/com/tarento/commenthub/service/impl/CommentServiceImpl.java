@@ -719,7 +719,7 @@ public class CommentServiceImpl implements CommentService {
             log.info(Constants.FETCH_USER_DETAILS_LOG);
             users = fetchUser.fetchUserFromprimary(userIds);
         }
-        return users != null ? users : new ArrayList<>();
+        return CollectionUtils.isEmpty(users) ? new ArrayList<>() : users;
     }
 
     private List<Object> fetchUsersWithFallback(List<String> userIds, List<String> fallbackIds) {
@@ -729,7 +729,7 @@ public class CommentServiceImpl implements CommentService {
             log.info(Constants.FETCH_TAGGED_USER_DETAILS_LOG);
             users = fetchUser.fetchUserFromprimary(fallbackIds);
         }
-        return users != null ? users : new ArrayList<>();
+        return CollectionUtils.isEmpty(users) ? new ArrayList<>() : users;
     }
 
   @Override
@@ -846,7 +846,7 @@ public class CommentServiceImpl implements CommentService {
       String commentTreeId = getCommentTreeIdForV3(searchCriteria);
       Map<String, Object> commentResultMap = getCommentTreeDataFromCacheOrDb(commentTreeId);
 
-      if (commentResultMap == null) {
+      if (MapUtils.isEmpty(commentResultMap)) {
           response.getParams().setErr(Constants.COMMENT_TREE_NOT_FOUND);
           return returnErrorMsg(Constants.COMMENT_TREE_NOT_FOUND, HttpStatus.NOT_FOUND, response);
       }
@@ -878,8 +878,9 @@ public class CommentServiceImpl implements CommentService {
     private Map<String, Object> getCommentTreeDataFromCacheOrDb(String commentTreeId) {
         try {
             String cachedData = (String) redisTemplate.opsForValue().get(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId);
-            if (cachedData != null) {
-                return objectMapper.readValue(cachedData, new TypeReference<Map<String, Object>>() {});
+            if (StringUtils.isNotBlank(cachedData)) {
+                return objectMapper.readValue(cachedData, new TypeReference<Map<String, Object>>() {
+                });
             }
         } catch (Exception e) {
             log.error("Error occurred while fetching data from Redis for commentTreeId: {}", commentTreeId, e);
@@ -906,8 +907,9 @@ public class CommentServiceImpl implements CommentService {
     private Map<String, Object> getPaginatedCommentsFromCache(String commentTreeId, int offset, int limit) {
         try {
             String cachedResult = (String) redisTemplate.opsForValue().get(Constants.COMMENT_KEY + generateRedisJwtTokenKey(commentTreeId, offset, limit));
-            if (cachedResult != null) {
-                return objectMapper.readValue(cachedResult, new TypeReference<Map<String, Object>>() {});
+            if (StringUtils.isNotBlank(cachedResult)) {
+                return objectMapper.readValue(cachedResult, new TypeReference<Map<String, Object>>() {
+                });
             }
         } catch (Exception e) {
             log.error("Error occurred while fetching paginated data from Redis for commentTreeId: {}", commentTreeId, e);
