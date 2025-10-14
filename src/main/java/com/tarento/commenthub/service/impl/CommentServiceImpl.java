@@ -843,7 +843,7 @@ public class CommentServiceImpl implements CommentService {
           return returnErrorMsg(error, HttpStatus.BAD_REQUEST, response);
       }
 
-      String commentTreeId = getCommentTreeIdForV3(searchCriteria);
+      String commentTreeId = getCommentTreeId(searchCriteria);
       Map<String, Object> commentResultMap = getCommentTreeDataFromCacheOrDb(commentTreeId);
 
       if (MapUtils.isEmpty(commentResultMap)) {
@@ -866,15 +866,6 @@ public class CommentServiceImpl implements CommentService {
       return response;
   }
 
-    private String getCommentTreeIdForV3(SearchCriteria searchCriteria) {
-        if (searchCriteria.getCommentTreeId().isEmpty()) {
-            CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO(
-                    searchCriteria.getEntityType(), searchCriteria.getEntityId(), searchCriteria.getWorkflow());
-            return generateJwtTokenKey(dto);
-        }
-        return searchCriteria.getCommentTreeId();
-    }
-
     private Map<String, Object> getCommentTreeDataFromCacheOrDb(String commentTreeId) {
         try {
             String cachedData = (String) redisTemplate.opsForValue().get(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId);
@@ -896,7 +887,7 @@ public class CommentServiceImpl implements CommentService {
             }
             return commentResultMap;
         }
-        return null;
+        return new HashMap<>();
     }
 
     private List<String> getChildNodeListFromResultMap(Map<String, Object> commentResultMap) {
