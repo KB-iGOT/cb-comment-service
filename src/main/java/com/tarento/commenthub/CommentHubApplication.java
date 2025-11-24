@@ -9,11 +9,16 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
+@ComponentScan(basePackages = {
+        "com.tarento.commenthub",
+        "org.igot.common"
+})
 public class CommentHubApplication {
 
   public static void main(String[] args) {

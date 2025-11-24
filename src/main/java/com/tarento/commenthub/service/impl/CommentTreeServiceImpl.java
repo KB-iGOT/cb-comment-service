@@ -205,88 +205,130 @@ public class CommentTreeServiceImpl implements CommentTreeService {
       CommentTree commentTreeToBeUpdated = optionalCommentTree.get();
       JsonNode jsonNode = commentTreeToBeUpdated.getCommentTreeData();
 
-      boolean commentIdFound = false;
-
-      // To remove commentId from childNodes
+      // Remove commentId from childNodes (required)
       ArrayNode childNodes = (ArrayNode) jsonNode.get(Constants.CHILD_NODES);
-      for (int i = 0; i < childNodes.size(); i++) {
-        if (commentId.equals(childNodes.get(i).asText())) {
-          commentIdFound = true;
-          childNodes.remove(i);
-          break; // Exit the loop once the ID is found and removed
-        }
-      }
-
-      if (!commentIdFound) {
+      boolean removedFromChildNodes = removeFromArrayNode(childNodes, commentId);
+      if (!removedFromChildNodes) {
         throw new CommentException(Constants.ERROR,
             "Comment, you're trying to delete not found in the specified comment tree."
                 + " Please double-check the 'entityType', 'entityId', and 'workflow' values to locate the correct comment tree.");
       }
 
-      // To remove commentId from firstLevelNodes
+      // Remove commentId from firstLevelNodes if present (best-effort)
       ArrayNode firstLevelNodes = (ArrayNode) jsonNode.get(Constants.FIRST_LEVEL_NODES);
-      for (int i = 0; i < firstLevelNodes.size(); i++) {
-        if (commentId.equals(firstLevelNodes.get(i).asText())) {
-          firstLevelNodes.remove(i);
-          break; // Exit the loop once the ID is found and removed
-        }
-      }
+      removeFromArrayNode(firstLevelNodes, commentId);
 
+      // Remove the comment from the comments tree (either child under parentId or top-level)
       ArrayNode comments = (ArrayNode) jsonNode.get(Constants.COMMENTS);
-      if (comments == null) {
+      if (null == comments) {
         return;
       }
 
-      for (int i = 0; i < comments.size(); i++) {
-        JsonNode commentNode = comments.get(i);
-        String currentCommentId = commentNode.get(Constants.COMMENT_ID).asText();
-
-        // Case 1: Remove child comment if parentId matches
-        if (parentId != null && !parentId.isEmpty() && parentId.equals(currentCommentId)) {
-          ArrayNode children = (ArrayNode) commentNode.get(Constants.CHILDREN);
-          if (children != null) {
-            for (int j = 0; j < children.size(); j++) {
-              if (commentId.equalsIgnoreCase(children.get(j).get(Constants.COMMENT_ID).asText())) {
-                children.remove(j);
-                commentIdFound = true;
-
-                // Remove empty children array
-                if (children.isEmpty() && commentNode instanceof ObjectNode) {
-                  ((ObjectNode) commentNode).remove(Constants.CHILDREN);
-                }
-                break;
-              }
-            }
-          }
-          break;
-        }
-
-        // Case 2: Remove top-level comment
-        if ((parentId == null || "null".equalsIgnoreCase(parentId) || parentId.isEmpty()) &&
-            commentId.equalsIgnoreCase(currentCommentId)) {
-          comments.remove(i);
-          commentIdFound = true;
-          break;
-        }
+      boolean commentRemoved = removeCommentFromComments(comments, commentId, parentId);
+      if (!commentRemoved) {
+        log.warn("Comment with id {} was not found/removed from comments array (parentId={})", commentId, parentId);
       }
 
+      // Persist changes and update Redis
       Map<String, Object> resultMap = objectMapper.convertValue(
           commentTreeToBeUpdated.getCommentTreeData(), Map.class);
       commentTreeRepository.save(commentTreeToBeUpdated);
       try {
-        // Serialize resultMap to JSON
         String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-        // Store the serialized JSON in Redis
         redisTemplate.opsForValue()
-            .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeToBeUpdated.getCommentTreeId(), resultMapJson, redisTtl, TimeUnit.SECONDS);
+            .set(Constants.COMMENT_TREE_REDIS_KEY + commentTreeToBeUpdated.getCommentTreeId(), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error(Constants.SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG, e);
-        throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
       }
       log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
           commentId, commentTreeToBeUpdated.getCommentTreeId());
     }
+  }
+
+  // Helper: remove the first occurrence of value from an ArrayNode of text values
+  private boolean removeFromArrayNode(ArrayNode arrayNode, String value) {
+    if (arrayNode == null || value == null) {
+      return false;
+    }
+    for (int i = 0; i < arrayNode.size(); i++) {
+      if (value.equals(arrayNode.get(i).asText())) {
+        arrayNode.remove(i);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Find a comment node by commentId within the provided comments array (shallow search)
+  private JsonNode findCommentById(ArrayNode comments, String commentId) {
+    if (null == comments || null == commentId) {
+      return null;
+    }
+    for (JsonNode node : comments) {
+      JsonNode idNode = node.get(Constants.COMMENT_ID);
+      if (idNode != null && commentId.equalsIgnoreCase(idNode.asText())) {
+        return node;
+      }
+    }
+    return null;
+  }
+
+  // Remove a child comment under the provided parent node. Returns true if removed, false otherwise.
+  private boolean removeChildFromParent(JsonNode parentNode, String commentId) {
+    if (null == parentNode || null == commentId) {
+      return false;
+    }
+    JsonNode childrenNode = parentNode.get(Constants.CHILDREN);
+    if (!(childrenNode instanceof ArrayNode children)) {
+      return false;
+    }
+    for (int j = 0; j < children.size(); j++) {
+      JsonNode child = children.get(j);
+      JsonNode childIdNode = child.get(Constants.COMMENT_ID);
+      if (childIdNode != null && commentId.equalsIgnoreCase(childIdNode.asText())) {
+        children.remove(j);
+        if (children.isEmpty() && parentNode instanceof ObjectNode objectNode) {
+          objectNode.remove(Constants.CHILDREN);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Remove top-level comment and return true if removed
+  private boolean removeTopLevelComment(ArrayNode comments, String commentId) {
+    if (null == comments || null == commentId) {
+      return false;
+    }
+    for (int i = 0; i < comments.size(); i++) {
+      JsonNode top = comments.get(i);
+      JsonNode topIdNode = top.get(Constants.COMMENT_ID);
+      if (topIdNode != null && commentId.equalsIgnoreCase(topIdNode.asText())) {
+        comments.remove(i);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Orchestrator helper: remove either a child comment (when parentId provided) or a top-level comment
+  private boolean removeCommentFromComments(ArrayNode comments, String commentId, String parentId) {
+    if (null == comments || null == commentId) {
+      return false;
+    }
+
+    if (parentId != null && !parentId.isEmpty() && !"null".equalsIgnoreCase(parentId)) {
+      JsonNode parent = findCommentById(comments, parentId);
+      if (parent != null) {
+        // parent found: try to remove child. If not present, do not fallthrough to top-level removal
+        return removeChildFromParent(parent, commentId);
+      }
+      // parent not found -> fallthrough to try top-level removal
+    }
+
+    return removeTopLevelComment(comments, commentId);
   }
 
   public String generateJwtTokenKey(CommentTreeIdentifierDTO commentTreeIdentifierDTO) {

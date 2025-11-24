@@ -16,7 +16,7 @@ import com.fasterxml.uuid.Generators;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
-import com.tarento.commenthub.authentication.util.AccessTokenValidator;
+import org.igot.common.auth.AccessTokenValidator;
 import com.tarento.commenthub.authentication.util.FetchUserDetails;
 import com.tarento.commenthub.constant.Constants;
 import com.tarento.commenthub.dto.CommentTreeIdentifierDTO;
@@ -382,11 +382,6 @@ public class CommentServiceImpl implements CommentService {
     }
   }
 
-  private List<String> getKeys(List<String> childNodeList) {
-    return childNodeList.stream().map(id -> COMMENT_KEY + id)
-        .collect(Collectors.toList());
-  }
-
 
   //need for refactoring later
   @Override
@@ -578,6 +573,7 @@ public class CommentServiceImpl implements CommentService {
     private Map<String, Object> fetchCommentFromPrimary(int offset, int limit,
                                                         List<String> childNodeList, CommentTree commentTree, boolean isUserEnriched, String version) {
 
+        log.info("CommentServiceImpl:fetchCommentFromPrimary::isUserEnriched={}, version={}, offset={}, limit={}", isUserEnriched, version, offset, limit);
         Map<String, Object> resultMap = new HashMap<>();
         Pageable pageable = PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
         List<Comment> comments = commentRepository.findByCommentIdIn(childNodeList, pageable).getContent();
@@ -1105,7 +1101,7 @@ public class CommentServiceImpl implements CommentService {
     List<String> userIds = comments.stream()
         .map(comment -> comment.getCommentData().get(Constants.COMMENT_SOURCE)
             .get(Constants.USER_ID).asText())
-        .collect(Collectors.toList());
+            .toList();
     Map<String, Object> propertyMap = new HashMap<>();
     propertyMap.put(Constants.ID, userIds);
     List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
@@ -1145,7 +1141,7 @@ public class CommentServiceImpl implements CommentService {
 
           return userMap;
         })
-        .collect(Collectors.toList());
+        .toList();
     return userList;
   }
 
