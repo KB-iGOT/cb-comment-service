@@ -79,19 +79,9 @@ public class CommentTreeServiceImpl implements CommentTreeService {
       Map<String, Object> resultMap;
       resultMap = objectMapper.convertValue(
           commentTree.getCommentTreeData(), Map.class);
-      commentTreeRepository.save(commentTree);
-      try {
-        // Serialize resultMap to JSON
-        String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-        // Store the serialized JSON in Redis
-        redisTemplate.opsForValue()
-            .set(commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
-      } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
-      }
-      return commentTree;
+        commentTreeRepository.save(commentTree);
+        storeResultMapInRedis(commentTreeId, resultMap);
+        return commentTree;
     } catch (Exception e) {
       e.printStackTrace();
       throw new CommentException(Constants.ERROR, e.getMessage(), HttpStatus.OK.value());
@@ -153,17 +143,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         CommentTree persistedCommentTree = commentTreeRepository.save(commentTree);
         Map<String, Object> resultMap = objectMapper.convertValue(
             persistedCommentTree.getCommentTreeData(), Map.class);
-        try {
-          // Serialize resultMap to JSON
-          String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-          // Store the serialized JSON in Redis
-          redisTemplate.opsForValue()
-              .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
-        } catch (JsonProcessingException e) {
-          log.error("Error serializing resultMap to JSON for Redis storage", e);
-          throw new RuntimeException("Failed to serialize resultMap", e);
-        }
+        storeResultMapInRedis(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, resultMap);
         return persistedCommentTree;
       } catch (Exception e) {
         e.printStackTrace();
@@ -301,8 +281,8 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         redisTemplate.opsForValue()
             .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeToBeUpdated.getCommentTreeId(), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        log.error(Constants.SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG, e);
+        throw new CommentException(Constants.ERROR,"Failed to serialize resultMap", e);
       }
       log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
           commentId, commentTreeToBeUpdated.getCommentTreeId());
@@ -358,4 +338,13 @@ public class CommentTreeServiceImpl implements CommentTreeService {
     throw new CommentException(Constants.ERROR,"Comment Tree not found");
   }
 
+    private void storeResultMapInRedis(String key, Map<String, Object> resultMap) {
+        try {
+            String resultMapJson = objectMapper.writeValueAsString(resultMap);
+            redisTemplate.opsForValue().set(key, resultMapJson, redisTtl, TimeUnit.SECONDS);
+        } catch (JsonProcessingException e) {
+            log.error(Constants.SERIALIZE_RESULT_MAP_TO_JSON_FOR_REDIS_STORAGE_LOG, e);
+            throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
+        }
+    }
 }

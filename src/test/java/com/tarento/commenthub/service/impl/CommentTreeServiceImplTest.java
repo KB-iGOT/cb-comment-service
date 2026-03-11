@@ -151,6 +151,7 @@ class CommentTreeServiceImplTest {
         try {
             node = mapper.readTree(json);
         } catch (Exception e) {
+            fail("Failed to parse JSON: " + e.getMessage());
         }
 
         JsonNode result = CommentTreeServiceImpl.findTargetNode(node, new String[]{"1", "2"}, 0);

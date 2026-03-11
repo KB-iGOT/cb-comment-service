@@ -7,7 +7,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CassandraPropertyReaderTest {
+class CassandraPropertyReaderTest {
     @Test
     void testSingletonReturnsSameInstance() {
         CassandraPropertyReader instance1 = CassandraPropertyReader.getInstance();

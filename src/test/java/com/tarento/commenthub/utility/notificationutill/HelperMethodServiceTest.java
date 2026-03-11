@@ -399,7 +399,7 @@ class HelperMethodServiceTest {
 
             Map<String, Object> courseResponse = new HashMap<>();
             courseResponse.put("name", "Test Course");
-            when(contentService.readContentFromCache(eq("course123"), eq(Arrays.asList(Constants.NAME)))).thenReturn(courseResponse);
+            when(contentService.readContentFromCache("course123", Arrays.asList(Constants.NAME))).thenReturn(courseResponse);
 
             helperMethodService.sendNotificationToUser(commentPayload, commentId, userIdList);
 
@@ -437,7 +437,7 @@ class HelperMethodServiceTest {
 
         Map<String, Object> courseResponse = new HashMap<>();
         courseResponse.put("name", "Another Course");
-        when(contentService.readContentFromCache(eq("course456"), eq(Arrays.asList(Constants.NAME)))).thenReturn(courseResponse);
+        when(contentService.readContentFromCache("course456", Arrays.asList(Constants.NAME))).thenReturn(courseResponse);
 
         helperMethodService.sendNotificationToUser(commentPayload, commentId, userIdList);
 
@@ -478,7 +478,7 @@ class HelperMethodServiceTest {
 
         Map<String, Object> courseResponse = new HashMap<>();
         courseResponse.put("name", "Reply Course");
-        when(contentService.readContentFromCache(eq("course456"), eq(Arrays.asList(Constants.NAME)))).thenReturn(courseResponse);
+        when(contentService.readContentFromCache("course456", Arrays.asList(Constants.NAME))).thenReturn(courseResponse);
 
         helperMethodService.sendNotificationToUser(commentPayload, commentId, userIdList);
 

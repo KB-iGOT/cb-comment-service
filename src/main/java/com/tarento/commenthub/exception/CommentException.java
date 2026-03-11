@@ -34,4 +34,13 @@ public class CommentException extends RuntimeException{
         this.message = errors.toString();
         this.errors = errors;
     }
+
+    public CommentException(String code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
+
+    public CommentException(Throwable cause) {
+        super(cause);
+    }
 }

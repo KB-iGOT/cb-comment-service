@@ -8,8 +8,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-public class CommentTest {
+class CommentTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -67,7 +66,7 @@ public class CommentTest {
         assertNotEquals(comment1.hashCode(), comment2.hashCode());
 
         assertNotEquals(comment1, comment3);
-        assertNotEquals(comment1, null);
+        assertNotEquals(null, comment1);
     }
 
     @Test

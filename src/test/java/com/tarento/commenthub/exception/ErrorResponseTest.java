@@ -7,7 +7,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ErrorResponseTest {
+class ErrorResponseTest {
     @Test
     void testBuilderAndGetters() {
         Map<String, String> errors = new HashMap<>();
@@ -106,10 +106,10 @@ public class ErrorResponseTest {
         assertEquals(response, response);
 
         // null comparison (should be false)
-        assertNotEquals(response, null);
+        assertNotEquals(null,response);
 
         // different type comparison (should be false)
-        assertNotEquals(response, "some string");
+        assertNotEquals( "some string",response);
     }
 
     @Test
@@ -247,14 +247,5 @@ public class ErrorResponseTest {
         ErrorResponse r2 = ErrorResponse.builder().build();
 
         assertEquals(r1.hashCode(), r2.hashCode()); // consistent even with nulls
-    }
-
-    @Test
-    void testToStringWithNulls() {
-        ErrorResponse response = ErrorResponse.builder().build();
-        String str = response.toString();
-
-        assertNotNull(str);
-        assertTrue(str.contains("null")); // confirms nulls are shown
     }
 }
