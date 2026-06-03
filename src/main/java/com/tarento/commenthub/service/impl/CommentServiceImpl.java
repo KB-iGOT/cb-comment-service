@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.uuid.Generators;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
@@ -324,8 +323,7 @@ public class CommentServiceImpl implements CommentService {
   }
 
   private String generateCommentId() {
-    UUID uuid = Generators.timeBasedGenerator().generate();
-    return uuid.toString();
+    return UUID.randomUUID().toString();
   }
 
   private Comment getPersistedComment(JsonNode commentPayload) {
