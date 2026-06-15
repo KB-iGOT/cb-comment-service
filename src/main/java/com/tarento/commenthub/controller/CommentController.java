@@ -45,6 +45,11 @@ public class CommentController {
     return commentService.addFirstCommentToCreateTree(payload);
   }
 
+  @PostMapping("/v1/ngo/addFirst")
+  public ResponseDTO addFirstCommentNgo(@RequestBody JsonNode payload) {
+    return commentService.addFirstCommentToCreateTree(payload);
+  }
+
   @PostMapping("/v1/addNew")
   public ResponseDTO addNewComment(@RequestBody JsonNode payload) {
     return commentService.addNewCommentToTree(payload);
