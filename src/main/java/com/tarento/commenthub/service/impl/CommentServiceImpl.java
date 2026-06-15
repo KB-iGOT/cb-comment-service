@@ -1217,12 +1217,24 @@ public class CommentServiceImpl implements CommentService {
   @Override
   public ResponseDTO addFirstCommentToCreateTreeForNgo(JsonNode payload, String token) {
     log.info("CommentService::addFirstCommentToCreateTreeForNgo: Payload received: {}", payload);
-    String userId = accessTokenValidator.verifyUserToken(token);
-    if (StringUtils.isBlank(userId)
-            || userId.equalsIgnoreCase(Constants.UNAUTHORIZED_USER)) {
+    String authenticatedUserId = accessTokenValidator.verifyUserToken(token);
+    if (StringUtils.isBlank(authenticatedUserId)
+            || authenticatedUserId.equalsIgnoreCase(Constants.UNAUTHORIZED_USER)) {
       throw new CommentException(Constants.ERROR, "Not a valid user");
     }
-    // Existing functionality
+    String requestUserId = payload
+            .path(Constants.COMMENT_DATA)
+            .path(Constants.COMMENT_SOURCE)
+            .path(Constants.USERID)
+            .asText();
+    if (StringUtils.isBlank(requestUserId)) {
+      throw new CommentException(Constants.ERROR, "commentSource.userId is required");
+    }
+    if (!authenticatedUserId.equals(requestUserId)) {
+      throw new CommentException(
+              Constants.ERROR,
+              "Authenticated user does not match commentSource.userId");
+    }
     return addFirstCommentToCreateTree(payload);
   }
 
