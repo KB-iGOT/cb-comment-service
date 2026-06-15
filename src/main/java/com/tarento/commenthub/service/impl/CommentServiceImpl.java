@@ -1214,4 +1214,16 @@ public class CommentServiceImpl implements CommentService {
     return "";
   }
 
+  @Override
+  public ResponseDTO addFirstCommentToCreateTreeForNgo(JsonNode payload, String token) {
+    log.info("CommentService::addFirstCommentToCreateTreeForNgo: Payload received: {}", payload);
+    String userId = accessTokenValidator.verifyUserToken(token);
+    if (StringUtils.isBlank(userId)
+            || userId.equalsIgnoreCase(Constants.UNAUTHORIZED_USER)) {
+      throw new CommentException(Constants.ERROR, "Not a valid user");
+    }
+    // Existing functionality
+    return addFirstCommentToCreateTree(payload);
+  }
+
 }

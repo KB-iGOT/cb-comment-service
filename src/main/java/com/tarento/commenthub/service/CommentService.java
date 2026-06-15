@@ -41,4 +41,6 @@ public interface CommentService {
   ApiResponse getCommentsLikedByUser(String courseId, String token);
 
   ApiResponse paginatedCommentV3(SearchCriteria searchCriteria);
+
+  ResponseDTO addFirstCommentToCreateTreeForNgo(JsonNode payload, String token);
 }
