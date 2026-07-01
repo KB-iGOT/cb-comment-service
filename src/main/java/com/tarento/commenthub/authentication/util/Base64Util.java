@@ -189,6 +189,8 @@ public class Base64Util {
         case 2:
           output_len += 3;
           break;
+        default:
+          break;
       }
     }
 
@@ -444,6 +446,8 @@ public class Base64Util {
               return false;
             }
             break;
+          default:
+            break;
         }
       }
 
@@ -486,6 +490,8 @@ public class Base64Util {
         case 5:
           // Read all the padding '='s we expected and no more.
           // Fine.
+          break;
+        default:
           break;
       }
 
@@ -592,6 +598,8 @@ public class Base64Util {
                 (input[p++] & 0xff);
             tailLen = 0;
           }
+          break;
+        default:
           break;
       }
 

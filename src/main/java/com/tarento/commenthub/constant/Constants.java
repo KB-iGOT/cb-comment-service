@@ -151,4 +151,7 @@ public class Constants {
   public static final String NAME = "name";
   public static final String MENTIONED_USERS = "mentionedUsers";
   public static final String USER_TABLE = "user";
+  public static final String COMMENT_TREE_NOT_FOUND = "CommentTree Not found";
+  public static final String MISSING_PARAM_ERROR_MESSAGE = "Failed Due To Missing Params - ";
+  public static final String ERROR_SERIALIZING_RESULT_MAP = "Error serializing resultMap to JSON for Redis storage";
 }

@@ -65,6 +65,8 @@ class CassandraConnectionManagerImplTest {
     void testShutdownHook() {
         Thread thread = new CassandraConnectionManagerImpl.ResourceCleanUp();
         thread.start();
+        assertDoesNotThrow(() -> thread.join());
+        assertFalse(thread.isAlive());
     }
 
     private ConsistencyLevel invokeGetConsistencyLevel() {
@@ -124,7 +126,7 @@ class CassandraConnectionManagerImplTest {
     @Test
     void testRegisterShutdownHook() {
         // Just call it — ensures no exceptions
-        CassandraConnectionManagerImpl.registerShutDownHook();
+        assertDoesNotThrow(() -> CassandraConnectionManagerImpl.registerShutDownHook());
     }
 
     @Test
@@ -137,7 +139,8 @@ class CassandraConnectionManagerImplTest {
         sessionField.set(null, mockSession);
 
         CassandraConnectionManagerImpl.ResourceCleanUp cleanup = new CassandraConnectionManagerImpl.ResourceCleanUp();
-        cleanup.run(); // should catch and log the exception, not throw
+        assertDoesNotThrow(() -> cleanup.run());
+        verify(mockSession).close();
     }
 
     @Test
