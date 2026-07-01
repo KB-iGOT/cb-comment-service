@@ -110,6 +110,9 @@ public class CommentServiceImpl implements CommentService {
   @Autowired
   private HelperMethodService helperMethodService;
 
+  private static final String FETCH_COMMENTS_FROM_REDIS_LOG = "CommentServiceImpl::getComments::fetch comments from redis";
+  private static final String FETCH_COMMENTS_FROM_POSTGRES_LOG = "CommentServiceImpl::getComments::fetch Comments from postgres";
+  private static final String FETCH_USER_DETAILS_FROM_PRIMARY_LOG = "CommentServiceImpl::getComments::fetching userDetails from primary";
   @Override
   public ResponseDTO addFirstCommentToCreateTree(JsonNode payload) {
     log.info("CommentService::addFirstCommentToCreateTree:Payload received: {}", payload);
@@ -211,11 +214,11 @@ public class CommentServiceImpl implements CommentService {
     JsonNode childNodes = commentTree.getCommentTreeData().get(Constants.CHILD_NODES);
     //check whether this is present in redis or not based on the key cmmentTreeId
     List<String> childNodeList = objectMapper.convertValue(childNodes, List.class);
-    log.info("CommentServiceImpl::getComments::fetch comments from redis");
+    log.info(FETCH_COMMENTS_FROM_REDIS_LOG);
     //call it from postgres remove redis reading
     List<Comment> comments = null;
     if (containsNull(comments)) {
-      log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
+      log.info(FETCH_COMMENTS_FROM_POSTGRES_LOG);
       // Fetch from db and add fetched comments into redis
       comments = commentRepository.findByCommentIdInAndStatus(childNodeList,
           Status.ACTIVE.name().toLowerCase());
@@ -254,7 +257,7 @@ public class CommentServiceImpl implements CommentService {
       if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
         userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
         if (userList == null || userList.isEmpty()) {
-          log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+          log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
           // Handle the case where userList is empty or null
           userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
         }
@@ -528,8 +531,8 @@ public class CommentServiceImpl implements CommentService {
     }
     Optional<CommentTree> commentTree = commentTreeRepository.findById(commentTreeId);
     if (!commentTree.isPresent()) {
-      response.getParams().setErr("CommentTree Not found");
-      return returnErrorMsg("CommentTree Not found", HttpStatus.NOT_FOUND, response);
+      response.getParams().setErr(Constants.COMMENT_TREE_NOT_FOUND);
+      return returnErrorMsg(Constants.COMMENT_TREE_NOT_FOUND, HttpStatus.NOT_FOUND, response);
     }
     JsonNode childNodes = commentTree.get().getCommentTreeData().get(Constants.FIRST_LEVEL_NODES);
     List<String> childNodeList = objectMapper.convertValue(childNodes, List.class);
@@ -568,7 +571,7 @@ public class CommentServiceImpl implements CommentService {
       return response;
     }
     if (MapUtils.isEmpty(resultMap)) {
-      log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
+      log.info(FETCH_COMMENTS_FROM_POSTGRES_LOG);
       resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), searchCriteria.isEnrichedUser(), version);
       try {
         // Serialize resultMap to JSON
@@ -584,7 +587,7 @@ public class CommentServiceImpl implements CommentService {
       response.setResult(resultMap);
       return response;
     } else {
-      log.info("CommentServiceImpl::getComments::fetch comments from redis");
+      log.info(FETCH_COMMENTS_FROM_REDIS_LOG);
       response.setResult(resultMap);
       return response;
     }
@@ -629,7 +632,7 @@ public class CommentServiceImpl implements CommentService {
     if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+        log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
         // Handle the case where userList is empty or null
         userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
       }
@@ -732,7 +735,7 @@ public class CommentServiceImpl implements CommentService {
     if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+        log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
         // Handle the case where userList is empty or null
         userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
       }
@@ -904,8 +907,8 @@ public class CommentServiceImpl implements CommentService {
       }
     }
     if (commentResultMap == null) {
-      response.getParams().setErr("CommentTree Not found");
-      return returnErrorMsg("CommentTree Not found", HttpStatus.NOT_FOUND, response);
+      response.getParams().setErr(Constants.COMMENT_TREE_NOT_FOUND);
+      return returnErrorMsg(Constants.COMMENT_TREE_NOT_FOUND, HttpStatus.NOT_FOUND, response);
     }
     JsonNode childNodes = objectMapper.valueToTree(
         commentResultMap.get(Constants.FIRST_LEVEL_NODES));
@@ -936,7 +939,7 @@ public class CommentServiceImpl implements CommentService {
           log.error("Error occurred while storing data in Redis for commentTreeId: {}", commentTreeId, e);
         }
       }
-      log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
+      log.info(FETCH_COMMENTS_FROM_POSTGRES_LOG);
       resultMap = fetchCommentFromPrimaryV3(offset, limit, childNodeList, commentTreeId);
       try {
         // Serialize and store paginated data in Redis
@@ -949,7 +952,7 @@ public class CommentServiceImpl implements CommentService {
       return response;
     }
     if (MapUtils.isEmpty(resultMap)) {
-      log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
+      log.info(FETCH_COMMENTS_FROM_POSTGRES_LOG);
       resultMap = fetchCommentFromPrimaryV3(offset, limit, childNodeList, commentTreeId);
       try {
         // Serialize and store paginated data in Redis
@@ -961,7 +964,7 @@ public class CommentServiceImpl implements CommentService {
       response.setResult(resultMap);
       return response;
     } else {
-      log.info("CommentServiceImpl::getComments::fetch comments from redis");
+      log.info(FETCH_COMMENTS_FROM_REDIS_LOG);
       response.setResult(resultMap);
       return response;
     }
@@ -969,7 +972,7 @@ public class CommentServiceImpl implements CommentService {
 
   private Map<String, Object> fetchCommentFromPrimaryV3(int offset, int limit,
       List<String> childNodeList, String commentTreeId) {
-    log.info("CommentServiceImpl::getComments::fetch comments from redis");
+    log.info(FETCH_COMMENTS_FROM_REDIS_LOG);
     Map<String, Object> resultMap = new HashMap<>();
     Pageable pageable = PageRequest.of(offset, limit,
         Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
@@ -1007,7 +1010,7 @@ public class CommentServiceImpl implements CommentService {
     if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching userDetails from primary");
+        log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
         // Handle the case where userList is empty or null
         userList = fetchUser.fetchUserFromprimary(commentedUserListWithoutPrefix);
       }
@@ -1062,7 +1065,7 @@ public class CommentServiceImpl implements CommentService {
       }
     }
     if (!errList.isEmpty()) {
-      str.append("Failed Due To Missing Params - ").append(errList).append(".");
+      str.append(Constants.MISSING_PARAM_ERROR_MESSAGE).append(errList).append(".");
     }
     return str.toString();
   }
@@ -1078,11 +1081,11 @@ public class CommentServiceImpl implements CommentService {
     List<String> errList = new ArrayList<>();
 
     if (StringUtils.isBlank(searchCriteria.getCommentTreeId())) {
-      if(searchCriteria.getEntityType().isEmpty() && searchCriteria.getEntityType().isEmpty() && searchCriteria.getWorkflow().isEmpty())
-      errList.add(Constants.COMMENT_TREE_ID);
+      if (searchCriteria.getEntityType().isEmpty() && searchCriteria.getEntityType().isEmpty() && searchCriteria.getWorkflow().isEmpty())
+        errList.add(Constants.COMMENT_TREE_ID);
     }
     if (!errList.isEmpty()) {
-      str.append("Failed Due To Missing Params - ").append(errList).append(".");
+      str.append(Constants.MISSING_PARAM_ERROR_MESSAGE).append(errList).append(".");
     }
     return str.toString();
   }
@@ -1098,7 +1101,7 @@ public class CommentServiceImpl implements CommentService {
       errList.add(Constants.USERID);
     }
     if (!errList.isEmpty()) {
-      str.append("Failed Due To Missing Params - ").append(errList).append(".");
+      str.append(Constants.MISSING_PARAM_ERROR_MESSAGE).append(errList).append(".");
     }
     return str.toString();
   }
@@ -1124,7 +1127,7 @@ public class CommentServiceImpl implements CommentService {
       errList.add("flag must be either 'like' or 'dislike'");
     }
     if (!errList.isEmpty()) {
-      str.append("Failed Due To Missing Params - ").append(errList).append(".");
+      str.append(Constants.MISSING_PARAM_ERROR_MESSAGE).append(errList).append(".");
     }
     return str.toString();
   }

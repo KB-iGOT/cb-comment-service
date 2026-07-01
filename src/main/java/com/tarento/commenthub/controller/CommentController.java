@@ -119,7 +119,7 @@ public class CommentController {
   }
 
   @PostMapping("/search")
-  public ResponseEntity<?> search(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<ApiResponse> search(@RequestBody SearchCriteria searchCriteria) {
     ApiResponse response = commentService.paginatedComment(searchCriteria, "v1");
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
       return new ResponseEntity<>(response, HttpStatus.OK);
@@ -127,13 +127,13 @@ public class CommentController {
     return new ResponseEntity<>(response, response.getResponseCode());
   }
   @PostMapping("/list")
-  public ResponseEntity<?> search(@RequestBody List<String> commentIds) {
+  public ResponseEntity<ApiResponse> search(@RequestBody List<String> commentIds) {
     ApiResponse response = commentService.listOfComments(commentIds);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
   @PostMapping("/report")
-  public ResponseEntity<?> report(@RequestBody Map<String, Object> request,
+  public ResponseEntity<ApiResponse> report(@RequestBody Map<String, Object> request,
       @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
     ApiResponse response = commentService.reportComment(request, token);
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
@@ -143,7 +143,7 @@ public class CommentController {
   }
 
   @PostMapping("/delete/reported")
-  public ResponseEntity<?> delete(@RequestBody Map<String, Object> request,
+  public ResponseEntity<ApiResponse> delete(@RequestBody Map<String, Object> request,
       @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
     ApiResponse response = commentService.deleteReportedComments(request, token);
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
@@ -159,7 +159,7 @@ public class CommentController {
   }
 
   @PostMapping("/v2/search")
-  public ResponseEntity<?> searchV2(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<ApiResponse> searchV2(@RequestBody SearchCriteria searchCriteria) {
     ApiResponse response = commentService.paginatedComment(searchCriteria, "v2");
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
       return new ResponseEntity<>(response, HttpStatus.OK);
@@ -168,7 +168,7 @@ public class CommentController {
   }
 
   @PostMapping("/v3/search")
-  public ResponseEntity<?> searchV3(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<ApiResponse> searchV3(@RequestBody SearchCriteria searchCriteria) {
     ApiResponse response = commentService.paginatedCommentV3(searchCriteria);
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
       return new ResponseEntity<>(response, HttpStatus.OK);

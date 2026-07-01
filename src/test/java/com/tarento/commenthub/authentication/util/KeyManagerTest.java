@@ -257,7 +257,7 @@ class KeyManagerTest {
             mockedFiles.when(() -> Files.walk(Paths.get("/invalid/path")))
                     .thenThrow(new IOException("Simulated IO Error"));
 
-            keyManager.init();  // no assertion needed because method types void
+            assertDoesNotThrow(() -> keyManager.init());
         }
     }
 
@@ -276,7 +276,7 @@ class KeyManagerTest {
             mockedFiles.when(() -> Files.readAllLines(fakePath, StandardCharsets.UTF_8))
                     .thenThrow(new IOException("Simulated read error"));
 
-            keyManager.init(); // no assertion needed because method types void
+            assertDoesNotThrow(() -> keyManager.init());
         }
     }
 
