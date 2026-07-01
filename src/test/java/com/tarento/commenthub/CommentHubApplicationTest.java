@@ -27,7 +27,7 @@ class CommentHubApplicationTest {
     }
 
     @Test
-    void testRestTemplate() throws Exception {
+    void testRestTemplate() {
         RestTemplate restTemplate = application.restTemplate();
         assertNotNull(restTemplate);
     }

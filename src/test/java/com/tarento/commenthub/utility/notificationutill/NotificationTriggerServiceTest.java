@@ -13,6 +13,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.DisplayName;
 
 import java.util.*;
 
@@ -59,84 +63,6 @@ class NotificationTriggerServiceTest {
         assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
 
         verify(restTemplate).postForEntity(eq("http://notification-api.com"), any(HttpEntity.class), eq(Map.class));
-    }
-
-    @Test
-    void testSendNotification_NullSubCategory() {
-        String subCategory = null;
-        String subType = "COMMENT";
-        List<String> userIds = Arrays.asList("user1");
-        Map<String, Object> message = new HashMap<>();
-        message.put("title", "Test");
-
-        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
-
-        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
-    }
-
-    @Test
-    void testSendNotification_EmptySubCategory() {
-        String subCategory = "";
-        String subType = "COMMENT";
-        List<String> userIds = Arrays.asList("user1");
-        Map<String, Object> message = new HashMap<>();
-        message.put("title", "Test");
-
-        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
-
-        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
-    }
-
-    @Test
-    void testSendNotification_BlankSubCategory() {
-        String subCategory = "   ";
-        String subType = "COMMENT";
-        List<String> userIds = Arrays.asList("user1");
-        Map<String, Object> message = new HashMap<>();
-        message.put("title", "Test");
-
-        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
-
-        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
-    }
-
-    @Test
-    void testSendNotification_NullSubType() {
-        String subCategory = "ENGAGEMENT";
-        String subType = null;
-        List<String> userIds = Arrays.asList("user1");
-        Map<String, Object> message = new HashMap<>();
-        message.put("title", "Test");
-
-        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
-
-        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
-    }
-
-    @Test
-    void testSendNotification_EmptySubType() {
-        String subCategory = "ENGAGEMENT";
-        String subType = "";
-        List<String> userIds = Arrays.asList("user1");
-        Map<String, Object> message = new HashMap<>();
-        message.put("title", "Test");
-
-        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
-
-        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
-    }
-
-    @Test
-    void testSendNotification_BlankSubType() {
-        String subCategory = "ENGAGEMENT";
-        String subType = "   ";
-        List<String> userIds = Arrays.asList("user1");
-        Map<String, Object> message = new HashMap<>();
-        message.put("title", "Test");
-
-        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
-
-        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
     }
 
     @Test
@@ -343,4 +269,20 @@ class NotificationTriggerServiceTest {
         verify(objectMapper).createObjectNode();
         verify(restTemplate).postForEntity(eq("http://notification-api.com"), any(HttpEntity.class), eq(Map.class));
     }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    @DisplayName("Should not call restTemplate when subCategory is null, empty, or blank")
+    void testSendNotification_InvalidSubCategory(String subCategory) {
+        String subType = "COMMENT";
+        List<String> userIds = Arrays.asList("user1");
+        Map<String, Object> message = new HashMap<>();
+        message.put("title", "Test");
+
+        assertDoesNotThrow(() -> notificationTriggerService.sendNotification(subCategory, subType, userIds, message));
+
+        verify(restTemplate, never()).postForEntity(anyString(), any(HttpEntity.class), eq(Map.class));
+    }
+
 }

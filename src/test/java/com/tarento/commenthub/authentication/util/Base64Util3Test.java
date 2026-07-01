@@ -2,6 +2,8 @@ package com.tarento.commenthub.authentication.util;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.lang.reflect.Field;
 
@@ -22,41 +24,6 @@ class Base64Util3Test {
         Field field = Base64Util.Decoder.class.getDeclaredField(name);
         field.setAccessible(true);
         field.set(decoder, value);
-    }
-
-    @Test
-    void testValidCompleteBase64() {
-        byte[] input = "TWFu".getBytes(); // "Man"
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertTrue(result);
-    }
-
-    @Test
-    void testValidPartialBase64_OnePad() {
-        byte[] input = "TWE=".getBytes(); // "Ma"
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertTrue(result);
-    }
-
-    @Test
-    void testValidPartialBase64_TwoPads() {
-        byte[] input = "TQ==".getBytes(); // "M"
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertTrue(result);
-    }
-
-    @Test
-    void testInvalidPaddingTooMany() {
-        byte[] input = "TQ===".getBytes(); // Invalid
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertFalse(result);
-    }
-
-    @Test
-    void testInvalidChar_shouldFail() {
-        byte[] input = "#WFu".getBytes(); // Invalid character
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertTrue(result);
     }
 
     @Test
@@ -102,18 +69,20 @@ class Base64Util3Test {
         assertTrue(result);
     }
 
-    @Test
-    void testState2ToState4Transition() {
-        byte[] input = "TW==".getBytes(); // Should transition from state 2 to 4
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertTrue(result);
-    }
-
-    @Test
-    void testState3ToState5Transition() {
-        byte[] input = "TWF=".getBytes(); // Should transition from state 3 to 5
-        boolean result = decoder.process(input, 0, input.length, true);
-        assertTrue(result);
+    @ParameterizedTest
+    @CsvSource({
+            "TWFu, true, Valid complete Base64",
+            "TWE=, true, Valid partial Base64 with one pad",
+            "TQ==, true, Valid partial Base64 with two pads",
+            "TQ===, false, Invalid padding too many",
+            "#WFu, true, Invalid character should still pass",
+            "TW==, true, State 2 to state 4 transition",
+            "TWF=, true, State 3 to state 5 transition"
+    })
+    void testBase64Processing(String input, boolean expected, String description) {
+        byte[] inputBytes = input.getBytes();
+        boolean result = decoder.process(inputBytes, 0, inputBytes.length, true);
+        assertEquals(expected, result, description);
     }
 
 }

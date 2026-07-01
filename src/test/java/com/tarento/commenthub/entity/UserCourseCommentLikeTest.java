@@ -8,7 +8,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class UserCourseCommentLikeTest {
+class UserCourseCommentLikeTest {
     @Test
     void testNoArgsConstructorAndSettersAndGetters() {
         UserCourseCommentLike like = new UserCourseCommentLike();
@@ -48,7 +48,7 @@ public class UserCourseCommentLikeTest {
         // No Lombok equals/hashCode override → default Object equality
         assertNotEquals(like1, like2);
         assertNotEquals(like1, like3);
-        assertNotEquals(like1, null);
+        assertNotEquals(null,like1);
 
         assertNotEquals(like1.hashCode(), like2.hashCode());
     }

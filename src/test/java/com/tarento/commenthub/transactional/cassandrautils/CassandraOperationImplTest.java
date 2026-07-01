@@ -111,10 +111,10 @@ class CassandraOperationImplTest {
 
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = Mockito.mockStatic(CassandraUtil.class)) {
             List<Map<String, Object>> expectedResponse = new ArrayList<>();
-            Map<String, Object> record = new HashMap<>();
-            record.put("id", "123");
-            record.put("name", "Test");
-            expectedResponse.add(record);
+            Map<String, Object> recordMap = new HashMap<>();
+            recordMap.put("id", "123");
+            recordMap.put("name", "Test");
+            expectedResponse.add(recordMap);
 
             cassandraUtilMockedStatic.when(() -> CassandraUtil.createResponse(any(ResultSet.class))).thenReturn(expectedResponse);
 
@@ -138,10 +138,10 @@ class CassandraOperationImplTest {
 
         try (MockedStatic<CassandraUtil> cassandraUtilMockedStatic = Mockito.mockStatic(CassandraUtil.class)) {
             List<Map<String, Object>> expectedResponse = new ArrayList<>();
-            Map<String, Object> record = new HashMap<>();
-            record.put("id", "123");
-            record.put("name", "Test");
-            expectedResponse.add(record);
+            Map<String, Object> recordMap = new HashMap<>();
+            recordMap.put("id", "123");
+            recordMap.put("name", "Test");
+            expectedResponse.add(recordMap);
 
             cassandraUtilMockedStatic.when(() -> CassandraUtil.createResponse(any(ResultSet.class))).thenReturn(expectedResponse);
 
@@ -175,8 +175,6 @@ class CassandraOperationImplTest {
     @Test
     void testGetRecordsByPropertiesByKey_success() {
         // Input
-        String keyspaceName = "test_keyspace";
-        String tableName = "test_table";
         Map<String, Object> propertyMap = Map.of("id", 1);
         List<String> fields = List.of("id", "name");
         String key = "id";
@@ -187,9 +185,6 @@ class CassandraOperationImplTest {
         // Spy on the private processQuery method via doReturn (assuming it returns Select instance)
         Select mockSelect = mock(Select.class);
         when(mockSelect.build()).thenReturn(statement);
-
-//        doReturn(mockSelect).when(cassandraOperation)
-//                .processQuery(keyspaceName, tableName, propertyMap, fields);
 
         when(connectionManager.getSession(keyspaceName)).thenReturn(mockSession);
         when(mockSession.execute(statement)).thenReturn(mockResultSet);
@@ -209,8 +204,6 @@ class CassandraOperationImplTest {
     @Test
     void testGetRecordsByPropertiesByKey_exception() {
         // Prepare input
-        String keyspaceName = "test_keyspace";
-        String tableName = "test_table";
         Map<String, Object> propertyMap = Map.of("id", 1);
         List<String> fields = List.of("id", "name");
         String key = "id";

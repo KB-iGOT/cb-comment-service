@@ -9,7 +9,7 @@ import java.security.PublicKey;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class KeyDataTest {
+class KeyDataTest {
 
     @Test
     void testConstructorAndGetters() throws NoSuchAlgorithmException {

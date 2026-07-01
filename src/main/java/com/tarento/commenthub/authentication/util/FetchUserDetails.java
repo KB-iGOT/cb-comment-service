@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarento.commenthub.cache.CacheService;
 import com.tarento.commenthub.constant.Constants;
+import com.tarento.commenthub.exception.CommentException;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,7 +98,7 @@ public class FetchUserDetails {
 
               }
             } catch (JsonProcessingException e) {
-              throw new RuntimeException(e);
+              throw new CommentException(e);
             }
           }
 

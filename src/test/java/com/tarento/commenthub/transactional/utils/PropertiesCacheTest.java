@@ -8,7 +8,7 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PropertiesCacheTest {
+class PropertiesCacheTest {
     private PropertiesCache propertiesCache;
 
     @BeforeEach
@@ -33,10 +33,9 @@ public class PropertiesCacheTest {
     }
 
     @Test
-    void testGetProperty_EnvVariableOverrides() throws Exception {
+    void testGetProperty_EnvVariableOverrides() {
         // Simulate System.getenv() override via reflection
         String envKey = "TEST_ENV_KEY";
-        String envValue = "envValue";
 
         // Call getProperty with key not in configProp
         String result = propertiesCache.getProperty(envKey);

@@ -230,7 +230,7 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
     }
 
     @Test
-    void testFetchCommentFromPrimaryV3_NullCommentData() throws Exception {
+    void testFetchCommentFromPrimaryV3_NullCommentData() {
         // Arrange
         int offset = 0, limit = 10;
         List<String> childNodeList = Arrays.asList("comment1");
@@ -238,7 +238,6 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
         
         List<Comment> comments = createMockCommentsWithNullData();
         Page<Comment> commentPage = new PageImpl<>(comments);
-        Map<String, Object> expectedResult = new HashMap<>();
         
         when(commentRepository.findByCommentIdIn(eq(childNodeList), any(Pageable.class)))
                 .thenReturn(commentPage);

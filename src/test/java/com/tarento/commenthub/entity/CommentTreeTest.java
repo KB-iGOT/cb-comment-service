@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CommentTreeTest {
+class CommentTreeTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -67,7 +67,7 @@ public class CommentTreeTest {
         assertNotEquals(tree1.hashCode(), tree2.hashCode());
 
         assertNotEquals(tree1, tree3);
-        assertNotEquals(tree1, null);
+        assertNotEquals( null,tree1);
     }
 
     @Test

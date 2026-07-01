@@ -43,7 +43,7 @@ class RestExceptionHandlingTest {
 
     @Test
     void testHandleCommentExceptionWithNullHttpStatus() {
-        CommentException commentException = new CommentException("ERR_NO_STATUS", "Fallback to OK", null);
+        CommentException commentException = new CommentException("ERR_NO_STATUS", "Fallback to OK", (Integer) null);
 
         ResponseEntity<?> response = restExceptionHandling.handleException(commentException);
 
