@@ -17,8 +17,6 @@ import java.util.Properties;
  * Also handles environment variable overrides for properties.
  */
 public class PropertiesCache {
-    // Logger for logging messages
-    private final Logger logger = LogManager.getLogger(getClass());
 
     // Array of file names from which properties are loaded
     private final String[] fileName = {

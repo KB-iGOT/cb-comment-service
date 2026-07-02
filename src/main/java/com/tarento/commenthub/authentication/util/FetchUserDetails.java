@@ -53,7 +53,7 @@ public class FetchUserDetails {
 
   public List<Object> fetchUserFromprimary(List<String> userIds) {
     log.info("FetchUserDetails::fetchUserFromprimary::fetching userDetails from primaryDb");
-    List<Object> userList = new ArrayList<>();
+    List<Object> userList;
     Map<String, Object> propertyMap = new HashMap<>();
     propertyMap.put(Constants.ID, userIds);
     List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(

@@ -30,8 +30,6 @@ class AccessTokenValidatorTest {
     @Mock
     private KeyManager keyManager;
 
-    @Mock
-    private PublicKey mockPublicKey;
 
     @InjectMocks
     private AccessTokenValidator accessTokenValidator;

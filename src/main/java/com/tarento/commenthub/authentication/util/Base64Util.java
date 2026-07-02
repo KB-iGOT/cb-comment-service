@@ -328,11 +328,11 @@ public class Base64Util {
       // the loop.  (Even alphabet makes a measurable
       // difference, which is somewhat surprising to me since
       // the member variable is final.)
-      int state = this.state;
-      int value = this.value;
+      int currentState = this.state;
+      int currentValue = this.value;
       int op = 0;
       final byte[] output = this.output;
-      final int[] alphabet = this.alphabet;
+      final int[] decodeAlphabet = this.alphabet;
 
       while (p < len) {
         // Try the fast path:  we're starting a new tuple and the
@@ -349,15 +349,15 @@ public class Base64Util {
         //
         // You can remove this whole block and the output should
         // be the same, just slower.
-        if (state == 0) {
+        if (currentState == 0) {
           while (p + 4 <= len &&
-              (value = ((alphabet[input[p] & 0xff] << 18) |
-                  (alphabet[input[p + 1] & 0xff] << 12) |
-                  (alphabet[input[p + 2] & 0xff] << 6) |
-                  (alphabet[input[p + 3] & 0xff]))) >= 0) {
-            output[op + 2] = (byte) value;
-            output[op + 1] = (byte) (value >> 8);
-            output[op] = (byte) (value >> 16);
+              (currentValue = ((decodeAlphabet[input[p] & 0xff] << 18) |
+                  (decodeAlphabet[input[p + 1] & 0xff] << 12) |
+                  (decodeAlphabet[input[p + 2] & 0xff] << 6) |
+                  (decodeAlphabet[input[p + 3] & 0xff]))) >= 0) {
+            output[op + 2] = (byte) currentValue;
+            output[op + 1] = (byte) (currentValue >> 8);
+            output[op] = (byte) (currentValue >> 16);
             op += 3;
             p += 4;
           }
@@ -371,13 +371,13 @@ public class Base64Util {
         // data, or whatever.  Fall back to the slower state
         // machine implementation.
 
-        int d = alphabet[input[p++] & 0xff];
+        int d = decodeAlphabet[input[p++] & 0xff];
 
-        switch (state) {
+        switch (currentState) {
           case 0:
             if (d >= 0) {
-              value = d;
-              ++state;
+              currentValue = d;
+              ++currentState;
             } else if (d != SKIP) {
               this.state = 6;
               return false;
@@ -386,8 +386,8 @@ public class Base64Util {
 
           case 1:
             if (d >= 0) {
-              value = (value << 6) | d;
-              ++state;
+              currentValue = (currentValue << 6) | d;
+              ++currentState;
             } else if (d != SKIP) {
               this.state = 6;
               return false;
@@ -396,13 +396,13 @@ public class Base64Util {
 
           case 2:
             if (d >= 0) {
-              value = (value << 6) | d;
-              ++state;
+              currentValue = (currentValue << 6) | d;
+              ++currentState;
             } else if (d == EQUALS) {
-              // Emit the last (partial) output tuple;
+              // Emit the last (partial) output tuple
               // expect exactly one more padding character.
-              output[op++] = (byte) (value >> 4);
-              state = 4;
+              output[op++] = (byte) (currentValue >> 4);
+              currentState = 4;
             } else if (d != SKIP) {
               this.state = 6;
               return false;
@@ -412,19 +412,19 @@ public class Base64Util {
           case 3:
             if (d >= 0) {
               // Emit the output triple and return to state 0.
-              value = (value << 6) | d;
-              output[op + 2] = (byte) value;
-              output[op + 1] = (byte) (value >> 8);
-              output[op] = (byte) (value >> 16);
+              currentValue = (currentValue << 6) | d;
+              output[op + 2] = (byte) currentValue;
+              output[op + 1] = (byte) (currentValue >> 8);
+              output[op] = (byte) (currentValue >> 16);
               op += 3;
-              state = 0;
+              currentState = 0;
             } else if (d == EQUALS) {
-              // Emit the last (partial) output tuple;
+              // Emit the last (partial) output tuple
               // expect no further data or padding characters.
-              output[op + 1] = (byte) (value >> 2);
-              output[op] = (byte) (value >> 10);
+              output[op + 1] = (byte) (currentValue >> 2);
+              output[op] = (byte) (currentValue >> 10);
               op += 2;
-              state = 5;
+              currentState = 5;
             } else if (d != SKIP) {
               this.state = 6;
               return false;
@@ -433,7 +433,7 @@ public class Base64Util {
 
           case 4:
             if (d == EQUALS) {
-              ++state;
+              ++currentState;
             } else if (d != SKIP) {
               this.state = 6;
               return false;
@@ -454,8 +454,8 @@ public class Base64Util {
       if (!finish) {
         // We're out of input, but a future call could provide
         // more.
-        this.state = state;
-        this.value = value;
+        this.state = currentState;
+        this.value = currentValue;
         this.op = op;
         return true;
       }
@@ -463,7 +463,7 @@ public class Base64Util {
       // Done reading input.  Now figure out where we are left in
       // the state machine and finish up.
 
-      switch (state) {
+      switch (currentState) {
         case 0:
           // Output length is a multiple of three.  Fine.
           break;
@@ -475,13 +475,13 @@ public class Base64Util {
         case 2:
           // Read two extra input bytes, enough to emit 1 more
           // output byte.  Fine.
-          output[op++] = (byte) (value >> 4);
+          output[op++] = (byte) (currentValue >> 4);
           break;
         case 3:
           // Read three extra input bytes, enough to emit 2 more
           // output bytes.  Fine.
-          output[op++] = (byte) (value >> 10);
-          output[op++] = (byte) (value >> 2);
+          output[op++] = (byte) (currentValue >> 10);
+          output[op++] = (byte) (currentValue >> 2);
           break;
         case 4:
           // Read one padding '=' when we expected 2.  Illegal.
@@ -495,7 +495,7 @@ public class Base64Util {
           break;
       }
 
-      this.state = state;
+      this.state = currentState;
       this.op = op;
       return true;
     }

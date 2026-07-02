@@ -1,5 +1,6 @@
 package com.tarento.commenthub.utility;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -13,7 +14,7 @@ public class DataCacheManager {
     if (contentCacheMap.containsKey(key)) {
       return contentCacheMap.get(key);
     }
-    return null;
+    return Collections.emptyMap();
   }
 
   public void putContentInCache(String key, Map<String, Object> value) {

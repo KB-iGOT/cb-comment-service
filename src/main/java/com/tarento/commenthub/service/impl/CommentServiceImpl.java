@@ -693,8 +693,6 @@ public class CommentServiceImpl implements CommentService {
       return returnErrorMsg("Bad rqst", HttpStatus.BAD_REQUEST, response);
     }
     //added sorting
-    int offset = defaultOffset;
-    int limit = defaultLimit;
     Sort sort = Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE);
     List<String> statuses = Arrays.asList(Status.ACTIVE.name().toLowerCase(),
         Status.SUSPENDED.name().toLowerCase());
@@ -973,7 +971,7 @@ public class CommentServiceImpl implements CommentService {
   private Map<String, Object> fetchCommentFromPrimaryV3(int offset, int limit,
       List<String> childNodeList, String commentTreeId) {
     log.info(FETCH_COMMENTS_FROM_REDIS_LOG);
-    Map<String, Object> resultMap = new HashMap<>();
+    Map<String, Object> resultMap;
     Pageable pageable = PageRequest.of(offset, limit,
         Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
     List<Comment> comments = commentRepository.findByCommentIdIn(childNodeList, pageable)

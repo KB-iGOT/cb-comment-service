@@ -9,7 +9,6 @@ import java.util.Map;
 
 @Getter
 @Setter
-@Component
 public class CommentException extends RuntimeException{
     private String code;
     private String message;
