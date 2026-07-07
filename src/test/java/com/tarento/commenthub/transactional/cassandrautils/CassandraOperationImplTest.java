@@ -175,8 +175,8 @@ class CassandraOperationImplTest {
     @Test
     void testGetRecordsByPropertiesByKey_success() {
         // Input
-        String keyspaceName = "test_keyspace";
-        String tableName = "test_table";
+        String testKeyspaceName = "test_keyspace";
+        String testTableName = "test_table";
         Map<String, Object> propertyMap = Map.of("id", 1);
         List<String> fields = List.of("id", "name");
         String key = "id";
@@ -188,10 +188,8 @@ class CassandraOperationImplTest {
         Select mockSelect = mock(Select.class);
         when(mockSelect.build()).thenReturn(statement);
 
-//        doReturn(mockSelect).when(cassandraOperation)
-//                .processQuery(keyspaceName, tableName, propertyMap, fields);
 
-        when(connectionManager.getSession(keyspaceName)).thenReturn(mockSession);
+        when(connectionManager.getSession(testKeyspaceName)).thenReturn(mockSession);
         when(mockSession.execute(statement)).thenReturn(mockResultSet);
 
         try (MockedStatic<CassandraUtil> cassandraUtilMock = Mockito.mockStatic(CassandraUtil.class)) {
@@ -199,7 +197,7 @@ class CassandraOperationImplTest {
             cassandraUtilMock.when(() -> CassandraUtil.createResponse(mockResultSet)).thenReturn(mockedResponse);
 
             // Call method
-            List<Map<String, Object>> response = cassandraOperation.getRecordsByPropertiesByKey(keyspaceName, tableName, propertyMap, fields, key);
+            List<Map<String, Object>> response = cassandraOperation.getRecordsByPropertiesByKey(testKeyspaceName, testTableName, propertyMap, fields, key);
 
             // Assertions
             assertNotNull(response);
@@ -209,8 +207,8 @@ class CassandraOperationImplTest {
     @Test
     void testGetRecordsByPropertiesByKey_exception() {
         // Prepare input
-        String keyspaceName = "test_keyspace";
-        String tableName = "test_table";
+        String testkeyspaceName = "test_keyspace";
+        String testTableName = "test_table";
         Map<String, Object> propertyMap = Map.of("id", 1);
         List<String> fields = List.of("id", "name");
         String key = "id";
@@ -219,7 +217,7 @@ class CassandraOperationImplTest {
         when(connectionManager.getSession(anyString())).thenThrow(new RuntimeException("Connection failed"));
 
         // Call method
-        List<Map<String, Object>> response = cassandraOperation.getRecordsByPropertiesByKey(keyspaceName, tableName, propertyMap, fields, key);
+        List<Map<String, Object>> response = cassandraOperation.getRecordsByPropertiesByKey(testkeyspaceName, testTableName, propertyMap, fields, key);
 
         // Assert
         assertNotNull(response); // should return empty list

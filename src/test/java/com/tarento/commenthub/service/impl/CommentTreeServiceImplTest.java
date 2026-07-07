@@ -147,11 +147,8 @@ class CommentTreeServiceImplTest {
     void testFindTargetNode_recursivelyFindsTarget() {
         ObjectMapper mapper = new ObjectMapper();
         String json = "[{\"commentId\": \"1\", \"children\": [{\"commentId\": \"2\"}]}]";
-        JsonNode node = null;
-        try {
-            node = mapper.readTree(json);
-        } catch (Exception e) {
-        }
+
+        JsonNode node = assertDoesNotThrow(() -> mapper.readTree(json));
 
         JsonNode result = CommentTreeServiceImpl.findTargetNode(node, new String[]{"1", "2"}, 0);
         assertNotNull(result);

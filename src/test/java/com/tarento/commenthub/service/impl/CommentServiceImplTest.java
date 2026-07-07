@@ -665,8 +665,6 @@ class CommentServiceImplTest {
         commentTreeData.put(Constants.ENTITY_ID, "entity-123");
         tree.setCommentTreeData(commentTreeData);
 
-        Map<String, Object> cached = Map.of("cachedKey", "cachedValue");
-
         Mockito.when(commentTreeRepository.findById(treeId)).thenReturn(Optional.of(tree));
         Mockito.when(redisTemplateEx.opsForValue()).thenReturn(valueOperations);
         String cachedJson = "{\"cachedKey\":\"cachedValue\"}";

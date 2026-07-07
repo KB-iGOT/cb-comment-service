@@ -1,6 +1,7 @@
 package com.tarento.commenthub.authentication.util;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 
 public class Base64Util {
 
@@ -118,12 +119,7 @@ public class Base64Util {
    *              in output that adheres to RFC 2045.
    */
   public static String encodeToString(byte[] input, int flags) {
-    try {
-      return new String(encode(input, flags), "US-ASCII");
-    } catch (UnsupportedEncodingException e) {
-      // US-ASCII is guaranteed to be available.
-      throw new AssertionError(e);
-    }
+      return new String(encode(input, flags),  StandardCharsets.US_ASCII);
   }
 
   //  --------------------------------------------------------
@@ -140,12 +136,7 @@ public class Base64Util {
    *               in output that adheres to RFC 2045.
    */
   public static String encodeToString(byte[] input, int offset, int len, int flags) {
-    try {
-      return new String(encode(input, offset, len, flags), "US-ASCII");
-    } catch (UnsupportedEncodingException e) {
-      // US-ASCII is guaranteed to be available.
-      throw new AssertionError(e);
-    }
+      return new String(encode(input, offset, len, flags), StandardCharsets.US_ASCII);
   }
 
   /**
@@ -172,22 +163,22 @@ public class Base64Util {
     Encoder encoder = new Encoder(flags, null);
 
     // Compute the exact length of the array we will produce.
-    int output_len = len / 3 * 4;
+    int outputLen = len / 3 * 4;
 
     // Account for the tail of the data and the padding bytes, if any.
     if (encoder.do_padding) {
       if (len % 3 > 0) {
-        output_len += 4;
+        outputLen += 4;
       }
     } else {
       switch (len % 3) {
         case 0:
           break;
         case 1:
-          output_len += 2;
+          outputLen += 2;
           break;
         case 2:
-          output_len += 3;
+          outputLen += 3;
           break;
         default:
           break;
@@ -196,14 +187,14 @@ public class Base64Util {
 
     // Account for the newlines, if any.
     if (encoder.do_newline && len > 0) {
-      output_len += (((len - 1) / (3 * Encoder.LINE_GROUPS)) + 1) *
+      outputLen += (((len - 1) / (3 * Encoder.LINE_GROUPS)) + 1) *
           (encoder.do_cr ? 2 : 1);
     }
 
-    encoder.output = new byte[output_len];
+    encoder.output = new byte[outputLen];
     encoder.process(input, offset, len, true);
 
-    assert encoder.op == output_len;
+    assert encoder.op == outputLen;
 
     return encoder.output;
   }
@@ -237,7 +228,7 @@ public class Base64Util {
     /**
      * Lookup table for turning bytes into their position in the Base64 alphabet.
      */
-    private static final int DECODE[] = {
+    private static final int[] DECODE = {
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63,
@@ -260,7 +251,7 @@ public class Base64Util {
      * Decode lookup table for the "web safe" variant (RFC 3548 sec. 4) where - and _ replace + and
      * /.
      */
-    private static final int DECODE_WEBSAFE[] = {
+    private static final int[] DECODE_WEBSAFE = {
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1,

@@ -168,9 +168,9 @@ class AccessTokenValidatorTest {
     }
 
     private String mockToken(Map<String, Object> payload) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        String headerJson = mapper.writeValueAsString(Collections.singletonMap("kid", "key1"));
-        String bodyJson = mapper.writeValueAsString(payload);
+        ObjectMapper objectMapper = new ObjectMapper();
+        String headerJson = objectMapper.writeValueAsString(Collections.singletonMap("kid", "key1"));
+        String bodyJson = objectMapper.writeValueAsString(payload);
 
         String header = Base64.getUrlEncoder().withoutPadding().encodeToString(headerJson.getBytes(StandardCharsets.UTF_8));
         String body = Base64.getUrlEncoder().withoutPadding().encodeToString(bodyJson.getBytes(StandardCharsets.UTF_8));
