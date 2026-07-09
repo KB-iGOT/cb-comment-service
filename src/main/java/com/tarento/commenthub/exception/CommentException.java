@@ -2,14 +2,11 @@ package com.tarento.commenthub.exception;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
 @Getter
 @Setter
-@Component
 public class CommentException extends RuntimeException{
     private String code;
     private String message;

@@ -268,11 +268,10 @@ public class CommentTreeServiceImpl implements CommentTreeService {
             for (int j = 0; j < children.size(); j++) {
               if (commentId.equalsIgnoreCase(children.get(j).get(Constants.COMMENT_ID).asText())) {
                 children.remove(j);
-                commentIdFound = true;
 
                 // Remove empty children array
-                if (children.isEmpty() && commentNode instanceof ObjectNode) {
-                  ((ObjectNode) commentNode).remove(Constants.CHILDREN);
+                if (children.isEmpty() && commentNode instanceof ObjectNode objectNode) {
+                  objectNode.remove(Constants.CHILDREN);
                 }
                 break;
               }
@@ -285,7 +284,6 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         if ((parentId == null || "null".equalsIgnoreCase(parentId) || parentId.isEmpty()) &&
             commentId.equalsIgnoreCase(currentCommentId)) {
           comments.remove(i);
-          commentIdFound = true;
           break;
         }
       }

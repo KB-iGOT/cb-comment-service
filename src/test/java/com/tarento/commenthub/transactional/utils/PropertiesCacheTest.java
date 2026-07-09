@@ -36,8 +36,6 @@ public class PropertiesCacheTest {
     void testGetProperty_EnvVariableOverrides() throws Exception {
         // Simulate System.getenv() override via reflection
         String envKey = "TEST_ENV_KEY";
-        String envValue = "envValue";
-
         // Call getProperty with key not in configProp
         String result = propertiesCache.getProperty(envKey);
 

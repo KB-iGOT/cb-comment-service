@@ -106,13 +106,13 @@ public class CommentController {
   }
 
   @PostMapping("/v1/like")
-  public ResponseEntity likeComment(@RequestBody Map<String, Object> likePayload) {
+  public ResponseEntity<ApiResponse>  likeComment(@RequestBody Map<String, Object> likePayload) {
     ApiResponse response = commentService.likeComment(likePayload);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
   @GetMapping("/v1/like/read")
-  public ResponseEntity getCommentLike(@RequestParam String commentId,
+  public ResponseEntity<ApiResponse> getCommentLike(@RequestParam String commentId,
       @RequestParam String userId) {
     ApiResponse response = commentService.getCommentLike(commentId, userId);
     return new ResponseEntity<>(response, response.getResponseCode());
@@ -153,7 +153,7 @@ public class CommentController {
   }
 
   @GetMapping("/v1/likedComments")
-  public ResponseEntity getCommentsLikedByUser(@RequestParam String courseId, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+  public ResponseEntity<ApiResponse> getCommentsLikedByUser(@RequestParam String courseId, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
     ApiResponse response = commentService.getCommentsLikedByUser(courseId, token);
     return new ResponseEntity<>(response, response.getResponseCode());
   }

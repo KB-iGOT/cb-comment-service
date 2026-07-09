@@ -72,7 +72,7 @@ public class KeyManager {
     publicKey = publicKey.replaceAll("(-+END PUBLIC KEY-+)", "");
     publicKey = publicKey.replaceAll("[\\r\\n]+", "");
     // Decode the key string from Base64
-    byte[] keyBytes = Base64Util.decode(publicKey.getBytes("UTF-8"), Base64Util.DEFAULT);
+    byte[] keyBytes = Base64Util.decode(publicKey.getBytes(StandardCharsets.UTF_8), Base64Util.DEFAULT);
     // Convert the key bytes to a PublicKey object
     X509EncodedKeySpec x509publicKey = new X509EncodedKeySpec(keyBytes);
     KeyFactory kf = KeyFactory.getInstance("RSA");

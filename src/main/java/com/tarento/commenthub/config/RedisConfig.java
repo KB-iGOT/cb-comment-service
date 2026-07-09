@@ -3,7 +3,6 @@ package com.tarento.commenthub.config;
 
 
 import com.tarento.commenthub.constant.Constants;
-import com.tarento.commenthub.entity.Comment;
 import java.time.Duration;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -96,4 +95,3 @@ public class RedisConfig {
   }
 
 }
-

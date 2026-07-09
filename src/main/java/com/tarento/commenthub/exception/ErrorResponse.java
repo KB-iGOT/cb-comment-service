@@ -3,7 +3,6 @@ package com.tarento.commenthub.exception;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Value;
-import org.springframework.http.HttpStatus;
 
 @Value
 @Builder

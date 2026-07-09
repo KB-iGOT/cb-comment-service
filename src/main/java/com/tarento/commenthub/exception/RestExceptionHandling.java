@@ -12,12 +12,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class RestExceptionHandling {
 
   @ExceptionHandler(Exception.class)
-  public ResponseEntity handleException(Exception ex) {
+  public ResponseEntity<ErrorResponse> handleException(Exception ex) {
     log.debug("RestExceptionHandler::handleException::" + ex);
     HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
     ErrorResponse errorResponse = null;
-    if (ex instanceof CommentException) {
-      CommentException commentException = (CommentException) ex;
+    if (ex instanceof CommentException commentException) {
       status = HttpStatus.OK;
       errorResponse = ErrorResponse.builder()
           .code(commentException.getCode())
