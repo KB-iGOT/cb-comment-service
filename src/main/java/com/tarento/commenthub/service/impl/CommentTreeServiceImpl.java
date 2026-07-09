@@ -270,8 +270,8 @@ public class CommentTreeServiceImpl implements CommentTreeService {
                 children.remove(j);
 
                 // Remove empty children array
-                if (children.isEmpty() && commentNode instanceof ObjectNode) {
-                  ((ObjectNode) commentNode).remove(Constants.CHILDREN);
+                if (children.isEmpty() && commentNode instanceof ObjectNode objectNode) {
+                  objectNode.remove(Constants.CHILDREN);
                 }
                 break;
               }

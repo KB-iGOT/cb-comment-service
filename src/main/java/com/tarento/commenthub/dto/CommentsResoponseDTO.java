@@ -1,6 +1,5 @@
 package com.tarento.commenthub.dto;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.tarento.commenthub.entity.Comment;
 import com.tarento.commenthub.entity.CommentTree;
 import java.util.List;

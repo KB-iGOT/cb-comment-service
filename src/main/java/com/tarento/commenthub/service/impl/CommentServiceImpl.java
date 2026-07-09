@@ -5,7 +5,6 @@ import static com.tarento.commenthub.utility.CommentsUtility.containsNull;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,12 +40,10 @@ import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import com.tarento.commenthub.utility.notificationutill.HelperMethodService;
 import com.tarento.commenthub.utility.notificationutill.NotificationTriggerService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -135,8 +132,7 @@ public class CommentServiceImpl implements CommentService {
     Comment comment = getPersistedComment(payload);
     ((ObjectNode) payload).put(Constants.COMMENT_ID, comment.getCommentId());
     CommentTree commentTree = commentTreeService.updateCommentTree(payload);
-    ResponseDTO responseDTO = new ResponseDTO(commentTree, comment);
-    return responseDTO;
+    return new ResponseDTO(commentTree, comment);
   }
 
   @Override
@@ -480,7 +476,7 @@ public class CommentServiceImpl implements CommentService {
       commentRepository.save(commentToBeUpdated);
       return response;
     } catch (Exception e) {
-      log.error("error occured while liking a comment::" + String.valueOf(e));
+      log.error("error occured while liking a comment::" + e.getMessage(), e);
       throw new RuntimeException(e);
     }
   }
@@ -681,15 +677,14 @@ public class CommentServiceImpl implements CommentService {
 
   private Map<String, Object> fetchCourseDetails(String courseId) {
     log.info("fetching course details from redis");
-    Map<String, Object> courseDetails = contentService.readContentFromCache(courseId, null);
-    return courseDetails;
+    return contentService.readContentFromCache(courseId, null);
   }
 
   @Override
   public ApiResponse listOfComments(List<String> commentIds) {
     ApiResponse response = new ApiResponse();
     response.setResponseCode(HttpStatus.OK);
-    if (commentIds.size()==0){
+    if (commentIds.isEmpty()){
       return returnErrorMsg("Bad rqst", HttpStatus.BAD_REQUEST, response);
     }
     //added sorting
@@ -784,7 +779,7 @@ public class CommentServiceImpl implements CommentService {
     }
     ObjectNode commentData = (ObjectNode) comment.getCommentData();
     commentData.put(Constants.REPORTED_BY, userId);
-    commentData.put(Constants.REPORTED_REASON,
+    commentData.set(Constants.REPORTED_REASON,
         objectMapper.valueToTree(request.get(Constants.REPORTED_REASON)));
     if (request.containsKey(Constants.REPORTED_REASON) &&
         request.get(Constants.REPORTED_REASON) instanceof List) {
