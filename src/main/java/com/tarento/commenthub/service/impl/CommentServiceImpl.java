@@ -89,6 +89,12 @@ public class CommentServiceImpl implements CommentService {
   @Value("${default.offset}")
   private int defaultOffset;
 
+  // Max comment ids per IN(...) query - keeps bind params safely under the JDBC/Postgres
+  // 65,535 parameter limit even when a comment tree has tens of thousands of nodes.
+  // Falls back to 20k if comment.id.batch.size isn't set in config.
+  @Value("${comment.id.batch.size:20000}")
+  private int commentIdBatchSize;
+
   @Autowired
   private CommentTreeRepository commentTreeRepository;
 
@@ -971,10 +977,7 @@ public class CommentServiceImpl implements CommentService {
       List<String> childNodeList, String commentTreeId) {
     log.info("CommentServiceImpl::getComments::fetch comments from redis");
     Map<String, Object> resultMap = new HashMap<>();
-    Pageable pageable = PageRequest.of(offset, limit,
-        Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
-    List<Comment> comments = commentRepository.findByCommentIdIn(childNodeList, pageable)
-        .getContent();
+    List<Comment> comments = fetchCommentsInBatches(childNodeList, offset, limit);
     List<Object> userList = new ArrayList<>();
     Set<String> uniqueTaggedUserIds = new HashSet<>();
     Set<String> uniqueTaggedUserIdWithoutPrefixs = new HashSet<>();
@@ -1030,6 +1033,40 @@ public class CommentServiceImpl implements CommentService {
         .ifPresent(commentsList -> commentsResoponseDTO.setCommentCount(childNodeList.size()));
     resultMap = objectMapper.convertValue(commentsResoponseDTO, Map.class);
     return resultMap;
+  }
+
+  /**
+   * Resolves the requested page of comments for a (potentially huge) comment tree without ever
+   * building a single IN(...) query large enough to exceed Postgres/JDBC's 65,535 bind
+   * parameter limit.
+   * <p>
+   * Splits {@code childNodeList} into batches of {@link #commentIdBatchSize} ids. From each
+   * batch we only need the top {@code (offset + 1) * limit} rows sorted by createdDate desc -
+   * the true top-N of the union can never rank lower than top-N within any single batch, so
+   * pulling that many "latest" rows per batch and comparing them by date across batches is
+   * sufficient to correctly answer any page, not just the first one.
+   */
+  private List<Comment> fetchCommentsInBatches(List<String> childNodeList, int offset, int limit) {
+    log.info("CommentServiceImpl::fetchCommentsInBatches::total ids for comment tree: {}",
+        childNodeList.size());
+    // How many of the most recent rows we need from the merged set to be able to slice out
+    // this page (offset behaves as a page index, matching the original PageRequest.of usage).
+    int neededPerBatch = (offset + 1) * limit;
+    List<Comment> candidates = new ArrayList<>();
+    for (int start = 0; start < childNodeList.size(); start += commentIdBatchSize) {
+      List<String> idBatch = childNodeList.subList(start,
+          Math.min(start + commentIdBatchSize, childNodeList.size()));
+      Pageable batchPageable = PageRequest.of(0, Math.min(neededPerBatch, idBatch.size()),
+          Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
+      candidates.addAll(commentRepository.findByCommentIdIn(idBatch, batchPageable).getContent());
+    }
+    // Compare the "latest" candidates gathered from every batch by date, then slice the page.
+    candidates.sort(Comparator.comparing(Comment::getCreatedDate,
+        Comparator.nullsLast(Comparator.reverseOrder())));
+    long skip = (long) offset * limit;
+    int fromIndex = skip >= candidates.size() ? candidates.size() : (int) skip;
+    int toIndex = Math.min(fromIndex + limit, candidates.size());
+    return candidates.subList(fromIndex, toIndex);
   }
 
   private String validateReportCommentPayload(Map<String, Object> request) {
