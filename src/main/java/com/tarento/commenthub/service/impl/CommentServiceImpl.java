@@ -269,7 +269,7 @@ public class CommentServiceImpl implements CommentService {
       if (taggedUserList != null && !taggedUserList.isEmpty()) {
         taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
         if (taggedUsers == null || taggedUsers.isEmpty()) {
-          log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+          log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
           // Handle the case where taggedUsers is empty or null
           taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
         }
@@ -644,7 +644,7 @@ public class CommentServiceImpl implements CommentService {
     if (taggedUserList != null && !taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+        log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
         // Handle the case where taggedUsers is empty or null
         taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
       }
@@ -747,7 +747,7 @@ public class CommentServiceImpl implements CommentService {
     if (taggedUserList != null && !taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+        log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
         // Handle the case where taggedUsers is empty or null
         taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
       }
@@ -1022,7 +1022,7 @@ public class CommentServiceImpl implements CommentService {
     if (taggedUserList != null && !taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
-        log.info("CommentServiceImpl::getComments::fetching taggedUserDetails from primary");
+        log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
         // Handle the case where taggedUsers is empty or null
         taggedUsers = fetchUser.fetchUserFromprimary(taggedUserListWithoutPrefix);
       }

@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthController {
 
     @GetMapping("/liveness")
-    public ResponseEntity<?> livenessCheck() throws Exception {
+    public ResponseEntity<String> livenessCheck() throws Exception {
         return new ResponseEntity<>("Status ok", HttpStatus.OK);
     }
 }
