@@ -34,6 +34,7 @@ import com.tarento.commenthub.utility.RedisCacheMngr;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class ContentServiceImplTest {
@@ -405,6 +406,76 @@ class ContentServiceImplTest {
         // Verify the URL doesn't contain any fields
         String capturedUrl = urlCaptor.getValue();
         assertFalse(capturedUrl.contains("field"));
+    }
+
+    // ---------------------------------------------------------------------
+    // readContentFromCache - branches not reached by the tests above:
+    // the redis payload parses to a *non-null but empty* map (the
+    // MapUtils.isNotEmpty(contentData) guard's false branch, which skips both the
+    // field-copy loop and dataCacheMgr.putContentInCache), and a requested field that
+    // is simply absent from the parsed content (the contentData.containsKey(field)
+    // guard's false branch inside that loop).
+    // ---------------------------------------------------------------------
+
+    @Test
+    void testReadContentFromCache_WhenRedisDataParsesToEmptyMap_skipsCacheWrite() throws Exception {
+        List<String> fields = List.of("field1", "field2");
+        String redisContent = "{}";
+        when(dataCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(null);
+        when(redisCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(redisContent);
+        when(mapper.readValue(anyString(), any(TypeReference.class))).thenReturn(new HashMap<>());
+
+        Map<String, Object> result = contentService.readContentFromCache(CONTENT_ID, fields);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(dataCacheMgr, never()).putContentInCache(anyString(), any(Map.class));
+    }
+
+    @Test
+    void testReadContentFromCache_WhenRequestedFieldMissingFromParsedContent_skipsField() throws Exception {
+        List<String> fields = List.of("field1", "field2");
+        String redisContent = "{\"field1\":\"value1\"}";
+        Map<String, Object> contentData = new HashMap<>();
+        contentData.put("field1", "value1"); // field2 intentionally absent
+        when(dataCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(null);
+        when(redisCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(redisContent);
+        when(mapper.readValue(anyString(), any(TypeReference.class))).thenReturn(contentData);
+
+        Map<String, Object> result = contentService.readContentFromCache(CONTENT_ID, fields);
+
+        assertEquals(1, result.size());
+        assertEquals("value1", result.get("field1"));
+        assertFalse(result.containsKey("field2"));
+        verify(dataCacheMgr).putContentInCache(eq(CONTENT_ID), any(Map.class));
+    }
+
+    // ---------------------------------------------------------------------
+    // fetchResult - the log.isDebugEnabled() branch. No existing test runs with DEBUG
+    // logging enabled for this class, so that whole guarded block (building the debug
+    // string and calling log.debug/log.info) is never executed. Flipping the logger's
+    // level directly is the only way to exercise it without changing test config globally.
+    // ---------------------------------------------------------------------
+
+    @Test
+    void fetchResult_debugLoggingEnabled_stillReturnsResponse() {
+        org.slf4j.Logger sl4jLogger = LoggerFactory.getLogger(ContentServiceImpl.class);
+        ch.qos.logback.classic.Logger logbackLogger = (ch.qos.logback.classic.Logger) sl4jLogger;
+        ch.qos.logback.classic.Level originalLevel = logbackLogger.getLevel();
+        logbackLogger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        try {
+            String uri = "http://test-uri.com/debug-check";
+            Map<String, Object> expectedResponse = new HashMap<>();
+            expectedResponse.put("key", "value");
+            when(restTemplate.getForObject(uri, Map.class)).thenReturn(expectedResponse);
+
+            Object actualResponse = contentService.fetchResult(uri);
+
+            assertNotNull(actualResponse);
+            assertEquals(expectedResponse, actualResponse);
+        } finally {
+            logbackLogger.setLevel(originalLevel);
+        }
     }
 
 }

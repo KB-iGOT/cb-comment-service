@@ -513,4 +513,145 @@ class HelperMethodServiceTest {
 
         verify(notificationTriggerService, never()).triggerNotification(any(), any(), any(), any(), any(), any());
     }
+
+    // The tests below close branch gaps inside fetchUserFromPrimary's profile-details block.
+    // testFetchUserFromPrimary_WithValidData (above) sets PROFILE_IMG/DESIGNATION_KEY/EMPLOYMENT_DETAILS
+    // all present-and-non-blank at once, so it only ever exercises the "true" side of each
+    // containsKey(...) && isNotBlank/isNotEmpty(...) check. These tests exercise the "false" sides.
+
+    @Test
+    void testFetchUserFromPrimary_ProfileDetailsMissingOptionalKeys() throws JsonProcessingException {
+        List<String> userIds = Arrays.asList("user1");
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put(Constants.ID, "user1");
+        userInfo.put(Constants.FIRST_NAME, "John");
+        userInfo.put(Constants.PROFILE_DETAILS, "{\"other\":\"value\"}");
+
+        List<Map<String, Object>> userInfoList = Arrays.asList(userInfo);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(userInfoList);
+
+        // Non-empty map (so MapUtils.isNotEmpty is true) but none of the three optional
+        // keys (PROFILE_IMG, DESIGNATION_KEY, EMPLOYMENT_DETAILS) are present at all.
+        Map<String, Object> profileDetailsMap = new HashMap<>();
+        profileDetailsMap.put("other", "value");
+        when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(profileDetailsMap);
+
+        List<Object> result = helperMethodService.fetchUserFromPrimary(userIds);
+
+        assertEquals(1, result.size());
+        Map<?, ?> userMap = (Map<?, ?>) result.get(0);
+        assertFalse(userMap.containsKey(Constants.PROFILE_IMG_KEY));
+        assertFalse(userMap.containsKey(Constants.DESIGNATION_KEY));
+        assertFalse(userMap.containsKey(Constants.DEPARTMENT));
+    }
+
+    @Test
+    void testFetchUserFromPrimary_ProfileDetailsBlankOrEmptyOptionalValues() throws JsonProcessingException {
+        List<String> userIds = Arrays.asList("user1");
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put(Constants.ID, "user1");
+        userInfo.put(Constants.FIRST_NAME, "John");
+        userInfo.put(Constants.PROFILE_DETAILS,
+                "{\"profileImageUrl\":\"\",\"designation\":\"\",\"employmentDetails\":{}}");
+
+        List<Map<String, Object>> userInfoList = Arrays.asList(userInfo);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(userInfoList);
+
+        // All three keys present (containsKey == true) but their values are blank/empty,
+        // so the isNotBlank/isNotEmpty second half of each condition is false.
+        Map<String, Object> profileDetailsMap = new HashMap<>();
+        profileDetailsMap.put(Constants.PROFILE_IMG, "");
+        profileDetailsMap.put(Constants.DESIGNATION_KEY, "");
+        profileDetailsMap.put(Constants.EMPLOYMENT_DETAILS, new HashMap<>());
+        when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(profileDetailsMap);
+
+        List<Object> result = helperMethodService.fetchUserFromPrimary(userIds);
+
+        assertEquals(1, result.size());
+        Map<?, ?> userMap = (Map<?, ?>) result.get(0);
+        assertFalse(userMap.containsKey(Constants.PROFILE_IMG_KEY));
+        assertFalse(userMap.containsKey(Constants.DESIGNATION_KEY));
+        assertFalse(userMap.containsKey(Constants.DEPARTMENT));
+    }
+
+    @Test
+    void testFetchUserFromPrimary_EmploymentDetailsMissingDepartmentKey() throws JsonProcessingException {
+        List<String> userIds = Arrays.asList("user1");
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put(Constants.ID, "user1");
+        userInfo.put(Constants.FIRST_NAME, "John");
+        userInfo.put(Constants.PROFILE_DETAILS, "{\"employmentDetails\":{\"other\":\"x\"}}");
+
+        List<Map<String, Object>> userInfoList = Arrays.asList(userInfo);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(userInfoList);
+
+        // employmentDetails map is present and non-empty (so containsKey + isNotEmpty are both
+        // true) but it has no DEPARTMENT_KEY entry.
+        Map<String, Object> employmentDetails = new HashMap<>();
+        employmentDetails.put("other", "x");
+        Map<String, Object> profileDetailsMap = new HashMap<>();
+        profileDetailsMap.put(Constants.EMPLOYMENT_DETAILS, employmentDetails);
+        when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(profileDetailsMap);
+
+        List<Object> result = helperMethodService.fetchUserFromPrimary(userIds);
+
+        assertEquals(1, result.size());
+        Map<?, ?> userMap = (Map<?, ?>) result.get(0);
+        assertFalse(userMap.containsKey(Constants.DEPARTMENT));
+    }
+
+    @Test
+    void testFetchUserFromPrimary_EmploymentDetailsBlankDepartment() throws JsonProcessingException {
+        List<String> userIds = Arrays.asList("user1");
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put(Constants.ID, "user1");
+        userInfo.put(Constants.FIRST_NAME, "John");
+        userInfo.put(Constants.PROFILE_DETAILS, "{\"employmentDetails\":{\"departmentName\":\"\"}}");
+
+        List<Map<String, Object>> userInfoList = Arrays.asList(userInfo);
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), any()))
+                .thenReturn(userInfoList);
+
+        // DEPARTMENT_KEY present (containsKey == true) but its value is blank.
+        Map<String, Object> employmentDetails = new HashMap<>();
+        employmentDetails.put(Constants.DEPARTMENT_KEY, "");
+        Map<String, Object> profileDetailsMap = new HashMap<>();
+        profileDetailsMap.put(Constants.EMPLOYMENT_DETAILS, employmentDetails);
+        when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(profileDetailsMap);
+
+        List<Object> result = helperMethodService.fetchUserFromPrimary(userIds);
+
+        assertEquals(1, result.size());
+        Map<?, ?> userMap = (Map<?, ?>) result.get(0);
+        assertFalse(userMap.containsKey(Constants.DEPARTMENT));
+    }
+
+    // processMentionedUsers: covers the "!existingMentionedUserIds.contains(userId)" branch
+    // when it evaluates to false, i.e. an incoming mentioned user was already mentioned before -
+    // it should be kept in the de-duplicated array but NOT reported as newly added.
+    @Test
+    void testProcessMentionedUsers_IncomingUserAlreadyExisted_notReportedAsNew() {
+        ObjectNode data = realObjectMapper.createObjectNode();
+        ArrayNode existingUsers = realObjectMapper.createArrayNode();
+        ObjectNode existingUser = realObjectMapper.createObjectNode();
+        existingUser.put(Constants.USER_ID, "user1");
+        existingUsers.add(existingUser);
+        data.set(Constants.MENTIONED_USERS, existingUsers);
+
+        ObjectNode updateDataNode = realObjectMapper.createObjectNode();
+        ArrayNode incomingUsers = realObjectMapper.createArrayNode();
+        ObjectNode sameUser = realObjectMapper.createObjectNode();
+        sameUser.put(Constants.USER_ID, "user1");
+        incomingUsers.add(sameUser);
+        updateDataNode.set(Constants.MENTIONED_USERS, incomingUsers);
+
+        when(objectMapper.createArrayNode()).thenReturn(realObjectMapper.createArrayNode());
+
+        List<String> result = helperMethodService.processMentionedUsers(data, updateDataNode);
+
+        assertTrue(result.isEmpty());
+    }
 }

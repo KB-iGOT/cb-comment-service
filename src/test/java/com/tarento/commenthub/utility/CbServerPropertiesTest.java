@@ -23,4 +23,23 @@ class CbServerPropertiesTest {
         assertEquals("title,description,status", cbServerProperties.getDefaultContentProperties());
         assertEquals("http://localhost:8081/notify", cbServerProperties.getNotificationApiUrl());
     }
+
+    // The @Value fields are populated via Spring field injection, which never calls the Lombok
+    // @Setter methods, and nothing else in the codebase calls them either - so all five setters
+    // (and the plain no-arg constructor) were previously never exercised by any test.
+    @Test
+    void testSettersUpdateValues() {
+        CbServerProperties properties = new CbServerProperties();
+        properties.setContentHost("http://test-host");
+        properties.setContentReadEndPoint("/api/v1/read");
+        properties.setContentReadEndPointFields("field1,field2");
+        properties.setDefaultContentProperties("prop1,prop2");
+        properties.setNotificationApiUrl("http://test-notify");
+
+        assertEquals("http://test-host", properties.getContentHost());
+        assertEquals("/api/v1/read", properties.getContentReadEndPoint());
+        assertEquals("field1,field2", properties.getContentReadEndPointFields());
+        assertEquals("prop1,prop2", properties.getDefaultContentProperties());
+        assertEquals("http://test-notify", properties.getNotificationApiUrl());
+    }
 }
