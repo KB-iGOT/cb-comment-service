@@ -17,7 +17,7 @@ class HealthControllerTest {
 
     @Test
     void testLivenessCheck() throws Exception {
-        ResponseEntity<?> response = healthController.livenessCheck();
+        ResponseEntity<String> response = healthController.livenessCheck();
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("Status ok", response.getBody());
     }

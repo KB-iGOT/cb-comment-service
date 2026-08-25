@@ -34,7 +34,7 @@ public class Comment implements Serializable {
 
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
-  private JsonNode commentData;
+  private transient JsonNode commentData;
 
   @Column(columnDefinition = "varchar(255) default 'active'")
   private String status;

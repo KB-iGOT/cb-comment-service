@@ -154,4 +154,6 @@ public class Constants {
   public static final String COMMENT_TREE_NOT_FOUND = "CommentTree Not found";
   public static final String MISSING_PARAM_ERROR_MESSAGE = "Failed Due To Missing Params - ";
   public static final String ERROR_SERIALIZING_RESULT_MAP = "Error serializing resultMap to JSON for Redis storage";
+  public static final String FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG =
+      "CommentServiceImpl::getComments::fetching taggedUserDetails from primary";
 }
