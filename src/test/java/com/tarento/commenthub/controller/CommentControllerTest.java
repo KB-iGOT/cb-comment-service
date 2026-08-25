@@ -261,7 +261,7 @@ class CommentControllerTest {
         result.put("message", "Comment liked successfully");
         mockResponse.setResult(result);
         when(commentService.likeComment(any(Map.class))).thenReturn(mockResponse);
-        ResponseEntity response = commentController.likeComment(likePayload);
+        ResponseEntity<ApiResponse> response = commentController.likeComment(likePayload);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(mockResponse, response.getBody());
         verify(commentService, times(1)).likeComment(likePayload);
@@ -275,7 +275,7 @@ class CommentControllerTest {
         mockResponse.setResponseCode(HttpStatus.OK);
         mockResponse.put("liked", true);
         when(commentService.getCommentLike(commentId, userId)).thenReturn(mockResponse);
-        ResponseEntity response = commentController.getCommentLike(commentId, userId);
+        ResponseEntity<ApiResponse> response = commentController.getCommentLike(commentId, userId);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(mockResponse, response.getBody());
     }
@@ -384,7 +384,7 @@ class CommentControllerTest {
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.OK);
         when(commentService.getCommentsLikedByUser(anyString(), anyString())).thenReturn(mockResponse);
-        ResponseEntity response = commentController.getCommentsLikedByUser(courseId, token);
+        ResponseEntity<ApiResponse> response = commentController.getCommentsLikedByUser(courseId, token);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(mockResponse, response.getBody());
     }
