@@ -68,7 +68,6 @@ public class CommentsResoponseDTO {
   public CommentsResoponseDTO(List<Comment> comments,
       List<Object> userList, List<Object> taggedUsers
       , String commentTreeId) {
-    this.commentTree = commentTree;
     this.comments = comments;
     this.users = userList;
     this.taggedUsers = taggedUsers;
