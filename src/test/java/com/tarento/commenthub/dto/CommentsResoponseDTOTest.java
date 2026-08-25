@@ -143,5 +143,30 @@ class CommentsResoponseDTOTest {
         assertEquals(users, dto.getUsers());
         assertNull(dto.getTaggedUsers());
     }
+
+    // Lombok's @AllArgsConstructor generates a constructor over all seven fields
+    // (commentTree, comments, users, commentCount, taggedUsers, courseDetails, commentTreeId).
+    // None of the tests above use it - they all go through the hand-written, narrower
+    // constructors - so it was never actually invoked.
+    @Test
+    void testLombokAllArgsConstructor_allSevenFields() {
+        CommentTree tree = new CommentTree();
+        Comment comment = new Comment();
+        List<Comment> comments = List.of(comment);
+        List<Object> users = List.of("u5");
+        List<Object> taggedUsers = List.of("tag5");
+        Map<String, Object> courseDetails = Map.of("course", "DSA");
+
+        CommentsResoponseDTO dto = new CommentsResoponseDTO(
+                tree, comments, users, 7, taggedUsers, courseDetails, "tree555");
+
+        assertEquals(tree, dto.getCommentTree());
+        assertEquals(comments, dto.getComments());
+        assertEquals(users, dto.getUsers());
+        assertEquals(7, dto.getCommentCount());
+        assertEquals(taggedUsers, dto.getTaggedUsers());
+        assertEquals(courseDetails, dto.getCourseDetails());
+        assertEquals("tree555", dto.getCommentTreeId());
+    }
 }
 

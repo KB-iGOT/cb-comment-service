@@ -432,5 +432,83 @@ class CommentControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(mockResponse, response.getBody());
     }
+
+    // ------------------------------------------------------------------------------------------
+    // The five endpoints below (search/v1, report, delete/reported, searchV2, searchV3) all share
+    // this pattern:
+    //   if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty())
+    //     return OK;
+    //   return response.getResponseCode();
+    // Every "...WhenNotFound" test above pairs NOT_FOUND with an *empty* result (the ApiResponse
+    // default), which only ever exercises the "both true" combination. Since each endpoint is its
+    // own copy of this compound condition (separate bytecode per method), the "NOT_FOUND but the
+    // result is NOT empty" branch - where the second operand evaluates false - was never touched
+    // for any of the five. These five tests close that branch, one per endpoint, and confirm the
+    // original NOT_FOUND status is preserved (not overridden to OK) in that case.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void testSearch_NotFoundWithNonEmptyResult_keepsNotFoundStatus() {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.NOT_FOUND);
+        mockResponse.put("err", "some detail");
+        when(commentService.paginatedComment(any(SearchCriteria.class), anyString())).thenReturn(mockResponse);
+        ResponseEntity<?> response = commentController.search(searchCriteria);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(mockResponse, response.getBody());
+    }
+
+    @Test
+    void testReportComment_NotFoundWithNonEmptyResult_keepsNotFoundStatus() {
+        Map<String, Object> request = new HashMap<>();
+        request.put("commentId", "comment123");
+        String token = "test-auth-token";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.NOT_FOUND);
+        mockResponse.put("err", "some detail");
+        when(commentService.reportComment(any(Map.class), anyString())).thenReturn(mockResponse);
+        ResponseEntity<?> response = commentController.report(request, token);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(mockResponse, response.getBody());
+    }
+
+    @Test
+    void testDeleteReportedComments_NotFoundWithNonEmptyResult_keepsNotFoundStatus() {
+        Map<String, Object> request = new HashMap<>();
+        request.put("commentId", "comment123");
+        String token = "test-auth-token";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.NOT_FOUND);
+        mockResponse.put("err", "some detail");
+        when(commentService.deleteReportedComments(any(Map.class), anyString())).thenReturn(mockResponse);
+        ResponseEntity<?> response = commentController.delete(request, token);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(mockResponse, response.getBody());
+    }
+
+    @Test
+    void testSearchV2_NotFoundWithNonEmptyResult_keepsNotFoundStatus() {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.NOT_FOUND);
+        mockResponse.put("err", "some detail");
+        when(commentService.paginatedComment(any(SearchCriteria.class), eq("v2"))).thenReturn(mockResponse);
+        ResponseEntity<?> response = commentController.searchV2(searchCriteria);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(mockResponse, response.getBody());
+    }
+
+    @Test
+    void testSearchV3_NotFoundWithNonEmptyResult_keepsNotFoundStatus() {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.NOT_FOUND);
+        mockResponse.put("err", "some detail");
+        when(commentService.paginatedCommentV3(any(SearchCriteria.class))).thenReturn(mockResponse);
+        ResponseEntity<?> response = commentController.searchV3(searchCriteria);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals(mockResponse, response.getBody());
+    }
 }
 

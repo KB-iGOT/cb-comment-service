@@ -49,6 +49,23 @@ class UserCourseCommentsIdTest {
         assertNotEquals("someString", id);
     }
 
+    // The two checks above go through JUnit's assertNotEquals(expected, actual), which delegates
+    // to Objects.equals(expected, actual). With a null/String as the *first* argument, that
+    // short-circuits (or calls String.equals) without ever calling id.equals(...) itself - so
+    // UserCourseCommentsId's own "o == null" and "getClass() != o.getClass()" branches never
+    // actually ran. Calling id.equals(...) directly is the only way to exercise them.
+    @Test
+    void testEquals_calledDirectlyWithNull_returnsFalse() {
+        UserCourseCommentsId id = new UserCourseCommentsId("user", "course");
+        assertFalse(id.equals(null));
+    }
+
+    @Test
+    void testEquals_calledDirectlyWithDifferentClass_returnsFalse() {
+        UserCourseCommentsId id = new UserCourseCommentsId("user", "course");
+        assertFalse(id.equals("someString"));
+    }
+
     @Test
     void testSameObjectEquals() {
         UserCourseCommentsId id = new UserCourseCommentsId("user", "course");

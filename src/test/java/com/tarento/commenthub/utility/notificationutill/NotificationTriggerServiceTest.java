@@ -343,4 +343,33 @@ class NotificationTriggerServiceTest {
         verify(objectMapper).createObjectNode();
         verify(restTemplate).postForEntity(eq("http://notification-api.com"), any(HttpEntity.class), eq(Map.class));
     }
+
+    // triggerNotification's own try/catch only wraps the call to sendNotification(...), but
+    // sendNotification internally catches IllegalArgumentException, HttpClientErrorException and
+    // a generic Exception itself and never rethrows - so testTriggerNotification_SendNotificationThrowsException
+    // (above) never actually reaches triggerNotification's catch block, since the exception thrown
+    // by restTemplate is swallowed one level down. That leaves the "log.error(...)" line inside
+    // triggerNotification's catch genuinely unreachable through the public API - the only way to
+    // exercise it is to spy on the service and force sendNotification itself to throw.
+    @Test
+    void testTriggerNotification_CatchBlock_whenSendNotificationThrows() {
+        String subCategory = "ENGAGEMENT";
+        String subType = "COMMENT";
+        List<String> userIds = Arrays.asList("user1");
+        String userName = "John";
+        String title = "Course";
+        Map<String, Object> data = new HashMap<>();
+
+        ObjectNode mockPlaceholders = realObjectMapper.createObjectNode();
+        when(objectMapper.createObjectNode()).thenReturn(mockPlaceholders);
+
+        NotificationTriggerService spyService = spy(notificationTriggerService);
+        doThrow(new RuntimeException("forced failure"))
+                .when(spyService).sendNotification(anyString(), anyString(), anyList(), anyMap());
+
+        assertDoesNotThrow(() ->
+                spyService.triggerNotification(subCategory, subType, userIds, userName, title, data));
+
+        verify(spyService).sendNotification(eq(subCategory), eq(subType), eq(userIds), anyMap());
+    }
 }
