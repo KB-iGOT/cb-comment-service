@@ -72,7 +72,7 @@ public class CommentServiceImpl implements CommentService {
   private ObjectMapper objectMapper;
 
   @Autowired
-  private RedisTemplate redisTemplate;
+  private RedisTemplate<String, String> redisTemplate;
 
   @Value("${redis.ttl}")
   private long redisTtl;
@@ -148,7 +148,7 @@ public class CommentServiceImpl implements CommentService {
       throw new CommentException(
           Constants.ERROR, "To update an existing comment, please provide a valid commentId.");
     }
-    log.info("commentId: " + paylaod.get(Constants.COMMENT_ID).asText());
+    log.info("commentId: {}", paylaod.get(Constants.COMMENT_ID).asText());
 
     Optional<Comment> optComment =
         commentRepository.findById(paylaod.get(Constants.COMMENT_ID).asText());
@@ -203,7 +203,7 @@ public class CommentServiceImpl implements CommentService {
       return responseDTO;
     } catch (Exception e) {
       log.error("Error occurred while updating comment or fetching CommentTree for commentId: {}", commentToBeUpdated.getCommentId(), e);
-      throw new RuntimeException("Failed to update comment or fetch CommentTree", e);
+      throw new CommentException(Constants.ERROR, "Failed to update comment or fetch CommentTree", e);
     }
   }
 
@@ -254,7 +254,7 @@ public class CommentServiceImpl implements CommentService {
         }
       });
       List<String> commentedUserListWithoutPrefix = new ArrayList<>(owneruserIds);
-      if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
+      if (!commentedUserListWithoutPrefix.isEmpty()) {
         userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
         if (userList == null || userList.isEmpty()) {
           log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -266,7 +266,7 @@ public class CommentServiceImpl implements CommentService {
       List<String> taggedUserListWithoutPrefix = new ArrayList<>(uniqueTaggedUserIdWithoutPrefixs);
       List<Object> taggedUsers = new ArrayList<>(); // Define and initialize outside the if block
 
-      if (taggedUserList != null && !taggedUserList.isEmpty()) {
+      if (!taggedUserList.isEmpty()) {
         taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
         if (taggedUsers == null || taggedUsers.isEmpty()) {
           log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -320,7 +320,7 @@ public class CommentServiceImpl implements CommentService {
       commentTreeService.updateCommentTreeForDeletedComment(commentId, commentTreeIdentifierDTO, parentId);
     } catch (Exception e) {
       log.error("Error occurred while deleting comment from Redis or updating CommentTree for commentId: {}", commentId, e);
-      throw new RuntimeException("Failed to delete comment or update CommentTree", e);
+      throw new CommentException(Constants.ERROR, "Failed to delete comment or update CommentTree", e);
     }
     return comment;
   }
@@ -370,7 +370,7 @@ public class CommentServiceImpl implements CommentService {
       return comment;
     } catch (Exception e) {
       log.error("Error occurred while storing comment in Redis for commentId: {}", comment.getCommentId(), e);
-      throw new RuntimeException("Failed to store comment in Redis", e);
+      throw new CommentException(Constants.ERROR, "Failed to store comment in Redis", e);
     }
   }
 
@@ -392,12 +392,6 @@ public class CommentServiceImpl implements CommentService {
       throw new CommentException(Constants.ERROR, "Failed to validate payload: " + e.getMessage());
     }
   }
-
-  private List<String> getKeys(List<String> childNodeList) {
-    return childNodeList.stream().map(id -> COMMENT_KEY + id)
-        .collect(Collectors.toList());
-  }
-
 
   //need for refactoring later
   @Override
@@ -480,8 +474,8 @@ public class CommentServiceImpl implements CommentService {
       commentRepository.save(commentToBeUpdated);
       return response;
     } catch (Exception e) {
-      log.error("error occured while liking a comment::" + String.valueOf(e));
-      throw new RuntimeException(e);
+      log.error("Error occurred while liking a comment", e);
+      throw new CommentException(Constants.ERROR, e.getMessage(), e);
     }
   }
 
@@ -501,8 +495,8 @@ public class CommentServiceImpl implements CommentService {
     propertyMap.put(Constants.COMMENT_ID, commentId);
     propertyMap.put(Constants.USERID, userId);
     List<Map<String, Object>> records = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
-        Constants.KEYSPACE_SUNBIRD, "comment_likes", propertyMap,
-        Collections.singletonList("flag"), null);
+        Constants.KEYSPACE_SUNBIRD, Constants.COMMENT_LIKE_TABLE, propertyMap,
+        Collections.singletonList(Constants.FLAG), null);
     if (!records.isEmpty()) {
       response.setResult(records.get(0));
       return response;
@@ -520,7 +514,7 @@ public class CommentServiceImpl implements CommentService {
     if (StringUtils.isNotBlank(error)) {
       return returnErrorMsg(error, HttpStatus.BAD_REQUEST, response);
     }
-    String commentTreeId = "";
+    String commentTreeId;
     if (searchCriteria.getCommentTreeId().isEmpty()) {
       CommentTreeIdentifierDTO commentTreeIdentifierDTO = new CommentTreeIdentifierDTO(
           searchCriteria.getEntityType(), searchCriteria.getEntityId(),
@@ -552,10 +546,10 @@ public class CommentServiceImpl implements CommentService {
         // Deserialize JSON string to Map
         } catch (JsonProcessingException e) {
         log.error("Error deserializing JSON from Redis", e);
-        throw new RuntimeException("Failed to deserialize JSON", e);
+        throw new CommentException(Constants.ERROR, "Failed to deserialize JSON", e);
       }
     } else {
-      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), searchCriteria.isEnrichedUser(), version);
+      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), version);
       try {
         // Serialize resultMap to JSON
         String resultMapJson = objectMapper.writeValueAsString(resultMap);
@@ -565,14 +559,14 @@ public class CommentServiceImpl implements CommentService {
             .set(generateRedisJwtTokenKey(commentTreeId, offset, limit), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
       }
       response.setResult(resultMap);
       return response;
     }
     if (MapUtils.isEmpty(resultMap)) {
       log.info(FETCH_COMMENTS_FROM_POSTGRES_LOG);
-      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), searchCriteria.isEnrichedUser(), version);
+      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), version);
       try {
         // Serialize resultMap to JSON
         String resultMapJson = objectMapper.writeValueAsString(resultMap);
@@ -582,7 +576,7 @@ public class CommentServiceImpl implements CommentService {
             .set(generateRedisJwtTokenKey(commentTreeId, offset, limit), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
       }
       response.setResult(resultMap);
       return response;
@@ -594,8 +588,7 @@ public class CommentServiceImpl implements CommentService {
   }
 
   private Map<String, Object> fetchCommentFromPrimary(int offset, int limit,
-      List<String> childNodeList, CommentTree commentTree, boolean isUserEnriched, String version) {
-    Map<String, Object> resultMap = new HashMap<>();
+      List<String> childNodeList, CommentTree commentTree, String version) {
     Pageable pageable = PageRequest.of(offset, limit,
         Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
     List<Comment> comments = commentRepository.findByCommentIdIn(childNodeList, pageable)
@@ -629,7 +622,7 @@ public class CommentServiceImpl implements CommentService {
       }
     });
     List<String> commentedUserListWithoutPrefix = new ArrayList<>(owneruserIds);
-    if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
+    if (!commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
         log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -641,7 +634,7 @@ public class CommentServiceImpl implements CommentService {
     List<String> taggedUserListWithoutPrefix = new ArrayList<>(uniqueTaggedUserIdWithoutPrefixs);
     List<Object> taggedUsers = new ArrayList<>(); // Define and initialize outside the if block
 
-    if (taggedUserList != null && !taggedUserList.isEmpty()) {
+    if (!taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
         log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -675,8 +668,7 @@ public class CommentServiceImpl implements CommentService {
         comments, userList, taggedUsers, courseDetails);
     Optional.ofNullable(comments)
         .ifPresent(commentsList -> commentsResoponseDTO.setCommentCount(childNodeList.size()));
-    resultMap = objectMapper.convertValue(commentsResoponseDTO, Map.class);
-    return resultMap;
+    return objectMapper.convertValue(commentsResoponseDTO, Map.class);
   }
 
   private Map<String, Object> fetchCourseDetails(String courseId) {
@@ -693,8 +685,6 @@ public class CommentServiceImpl implements CommentService {
       return returnErrorMsg("Bad rqst", HttpStatus.BAD_REQUEST, response);
     }
     //added sorting
-    int offset = defaultOffset;
-    int limit = defaultLimit;
     Sort sort = Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE);
     List<String> statuses = Arrays.asList(Status.ACTIVE.name().toLowerCase(),
         Status.SUSPENDED.name().toLowerCase());
@@ -732,7 +722,7 @@ public class CommentServiceImpl implements CommentService {
       }
     });
     List<String> commentedUserListWithoutPrefix = new ArrayList<>(owneruserIds);
-    if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
+    if (!commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
         log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -744,7 +734,7 @@ public class CommentServiceImpl implements CommentService {
     List<String> taggedUserListWithoutPrefix = new ArrayList<>(uniqueTaggedUserIdWithoutPrefixs);
     List<Object> taggedUsers = new ArrayList<>(); // Define and initialize outside the if block
 
-    if (taggedUserList != null && !taggedUserList.isEmpty()) {
+    if (!taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
         log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -792,7 +782,7 @@ public class CommentServiceImpl implements CommentService {
         request.get(Constants.REPORTED_REASON) instanceof List) {
       List<String> reportedReasonList = (List<String>) request.get(Constants.REPORTED_REASON);
 
-      if (reportedReasonList.contains("Others") && request.containsKey(Constants.OTHER_REASON)) {
+      if (reportedReasonList.contains(Constants.OTHERS_REPORT_REASON) && request.containsKey(Constants.OTHER_REASON)) {
         String otherReason = (String) request.get(Constants.OTHER_REASON);
         if (!StringUtils.isBlank(otherReason)) {
           commentData.put(Constants.OTHER_REASON, otherReason);
@@ -872,7 +862,7 @@ public class CommentServiceImpl implements CommentService {
     if (StringUtils.isNotBlank(error)) {
       return returnErrorMsg(error, HttpStatus.BAD_REQUEST, response);
     }
-    String commentTreeId = "";
+    String commentTreeId;
     if (searchCriteria.getCommentTreeId().isEmpty()) {
       CommentTreeIdentifierDTO commentTreeIdentifierDTO = new CommentTreeIdentifierDTO(
           searchCriteria.getEntityType(), searchCriteria.getEntityId(),
@@ -973,7 +963,6 @@ public class CommentServiceImpl implements CommentService {
   private Map<String, Object> fetchCommentFromPrimaryV3(int offset, int limit,
       List<String> childNodeList, String commentTreeId) {
     log.info(FETCH_COMMENTS_FROM_REDIS_LOG);
-    Map<String, Object> resultMap = new HashMap<>();
     Pageable pageable = PageRequest.of(offset, limit,
         Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
     List<Comment> comments = commentRepository.findByCommentIdIn(childNodeList, pageable)
@@ -1007,7 +996,7 @@ public class CommentServiceImpl implements CommentService {
       }
     });
     List<String> commentedUserListWithoutPrefix = new ArrayList<>(owneruserIds);
-    if (commentedUserListWithoutPrefix != null && !commentedUserListWithoutPrefix.isEmpty()) {
+    if (!commentedUserListWithoutPrefix.isEmpty()) {
       userList = fetchUser.fetchDataForKeys(commentedUserListWithoutPrefix);
       if (userList == null || userList.isEmpty()) {
         log.info(FETCH_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -1019,7 +1008,7 @@ public class CommentServiceImpl implements CommentService {
     List<String> taggedUserListWithoutPrefix = new ArrayList<>(uniqueTaggedUserIdWithoutPrefixs);
     List<Object> taggedUsers = new ArrayList<>(); // Define and initialize outside the if block
 
-    if (taggedUserList != null && !taggedUserList.isEmpty()) {
+    if (!taggedUserList.isEmpty()) {
       taggedUsers = fetchUser.fetchDataForKeys(taggedUserList);
       if (taggedUsers == null || taggedUsers.isEmpty()) {
         log.info(FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG);
@@ -1031,12 +1020,11 @@ public class CommentServiceImpl implements CommentService {
         comments, userList, taggedUsers, commentTreeId);
     Optional.ofNullable(comments)
         .ifPresent(commentsList -> commentsResoponseDTO.setCommentCount(childNodeList.size()));
-    resultMap = objectMapper.convertValue(commentsResoponseDTO, Map.class);
-    return resultMap;
+    return objectMapper.convertValue(commentsResoponseDTO, Map.class);
   }
 
   private String validateReportCommentPayload(Map<String, Object> request) {
-    StringBuffer str = new StringBuffer();
+    StringBuilder str = new StringBuilder();
     List<String> errList = new ArrayList<>();
 
     if (request.containsKey(Constants.COMMENT_ID) &&
@@ -1052,7 +1040,7 @@ public class CommentServiceImpl implements CommentService {
         // Check if the list is empty
         if (reportedReasonList.isEmpty()) {
           errList.add(Constants.REPORTED_REASON);
-        } else if (reportedReasonList.contains("Others")) {
+        } else if (reportedReasonList.contains(Constants.OTHERS_REPORT_REASON)) {
           // Check if OTHER_REASON is provided
           if (!request.containsKey(Constants.OTHER_REASON) ||
               StringUtils.isBlank((String) request.get(Constants.OTHER_REASON))) {
@@ -1077,7 +1065,7 @@ public class CommentServiceImpl implements CommentService {
   }
 
   private String validateSearchPayload(SearchCriteria searchCriteria) {
-    StringBuffer str = new StringBuffer();
+    StringBuilder str = new StringBuilder();
     List<String> errList = new ArrayList<>();
 
     if (StringUtils.isBlank(searchCriteria.getCommentTreeId())) {
@@ -1091,7 +1079,7 @@ public class CommentServiceImpl implements CommentService {
   }
 
   private String validatePayloadForCommAndUser(String commentId, String userId) {
-    StringBuffer str = new StringBuffer();
+    StringBuilder str = new StringBuilder();
     List<String> errList = new ArrayList<>();
 
     if (StringUtils.isBlank(commentId)) {
@@ -1107,7 +1095,7 @@ public class CommentServiceImpl implements CommentService {
   }
 
   private String validateLikeCommentPayload(Map<String, Object> likePayload) {
-    StringBuffer str = new StringBuffer();
+    StringBuilder str = new StringBuilder();
     List<String> errList = new ArrayList<>();
 
     if (StringUtils.isBlank((String) likePayload.get(Constants.COMMENT_ID))) {
@@ -1151,55 +1139,6 @@ public class CommentServiceImpl implements CommentService {
 
     log.info("commentTreeId: {}", jwtToken);
     return jwtToken;
-  }
-
-  private List<Map<String, Object>> fetchUsersByCommentData (List<Comment> comments) {
-    List<Map<String, Object>> userList = new ArrayList<>();
-    List<String> userIds = comments.stream()
-        .map(comment -> comment.getCommentData().get(Constants.COMMENT_SOURCE)
-            .get(Constants.USER_ID).asText())
-        .collect(Collectors.toList());
-    Map<String, Object> propertyMap = new HashMap<>();
-    propertyMap.put(Constants.ID, userIds);
-    List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
-        Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER, propertyMap,
-        Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
-
-    userList = userInfoList.stream()
-        .map(userInfo -> {
-          Map<String, Object> userMap = new HashMap<>();
-
-          // Extract user ID and user name
-          String userId = (String) userInfo.get(Constants.ID);
-          String userName = (String) userInfo.get(Constants.FIRST_NAME);
-
-          userMap.put(Constants.USER_ID, userId);
-          userMap.put(Constants.USER_NAME, userName);
-
-          // Process profile details if present
-          String profileDetails = (String) userInfo.get(Constants.PROFILE_DETAILS);
-          if (StringUtils.isNotBlank(profileDetails)) {
-            try {
-              // Convert JSON profile details to a Map
-              Map<String, Object> profileDetailsMap = objectMapper.readValue(profileDetails,
-                  new TypeReference<HashMap<String, Object>>() {});
-
-              // Check for profile image and add to userMap if available
-              if (MapUtils.isNotEmpty(profileDetailsMap) && profileDetailsMap.containsKey(Constants.PROFILE_IMG)) {
-                String profileImageUrl = (String) profileDetailsMap.get(Constants.PROFILE_IMG);
-                if (StringUtils.isNotEmpty(profileImageUrl)) {
-                  userMap.put(Constants.PROFILE_IMG, profileImageUrl);
-                }
-              }
-            } catch (JsonProcessingException e) {
-              throw new RuntimeException(e);
-            }
-          }
-
-          return userMap;
-        })
-        .collect(Collectors.toList());
-    return userList;
   }
 
   public String generateRedisJwtTokenKey(String commentTreeId, Integer offset, Integer limit) {

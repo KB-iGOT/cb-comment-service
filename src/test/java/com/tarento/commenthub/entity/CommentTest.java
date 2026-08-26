@@ -67,7 +67,7 @@ public class CommentTest {
         assertNotEquals(comment1.hashCode(), comment2.hashCode());
 
         assertNotEquals(comment1, comment3);
-        assertNotEquals(comment1, null);
+        assertNotEquals(null, comment1);
     }
 
     @Test

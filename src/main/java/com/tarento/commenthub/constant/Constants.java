@@ -156,4 +156,5 @@ public class Constants {
   public static final String ERROR_SERIALIZING_RESULT_MAP = "Error serializing resultMap to JSON for Redis storage";
   public static final String FETCHING_TAGGED_USER_DETAILS_FROM_PRIMARY_LOG =
       "CommentServiceImpl::getComments::fetching taggedUserDetails from primary";
+  public static final String OTHERS_REPORT_REASON = "Others";
 }

@@ -41,7 +41,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
   private CommentTreeRepository commentTreeRepository;
 
   @Autowired
-  private RedisTemplate redisTemplate;
+  private RedisTemplate<String, String> redisTemplate;
 
   @Value("${redis.ttl.comment.tree}")
   private long redisTtl;
@@ -89,7 +89,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
             .set(commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error(Constants.ERROR_SERIALIZING_RESULT_MAP, e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
       }
       return commentTree;
     } catch (Exception e) {
@@ -162,7 +162,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
               .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
         } catch (JsonProcessingException e) {
           log.error(Constants.ERROR_SERIALIZING_RESULT_MAP, e);
-          throw new RuntimeException("Failed to serialize resultMap", e);
+          throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
         }
         return persistedCommentTree;
       } catch (Exception e) {
@@ -268,7 +268,6 @@ public class CommentTreeServiceImpl implements CommentTreeService {
             for (int j = 0; j < children.size(); j++) {
               if (commentId.equalsIgnoreCase(children.get(j).get(Constants.COMMENT_ID).asText())) {
                 children.remove(j);
-                commentIdFound = true;
 
                 // Remove empty children array
                 if (children.isEmpty() && commentNode instanceof ObjectNode) {
@@ -285,7 +284,6 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         if ((parentId == null || "null".equalsIgnoreCase(parentId) || parentId.isEmpty()) &&
             commentId.equalsIgnoreCase(currentCommentId)) {
           comments.remove(i);
-          commentIdFound = true;
           break;
         }
       }
@@ -302,7 +300,7 @@ public class CommentTreeServiceImpl implements CommentTreeService {
             .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeToBeUpdated.getCommentTreeId(), resultMapJson, redisTtl, TimeUnit.SECONDS);
       } catch (JsonProcessingException e) {
         log.error(Constants.ERROR_SERIALIZING_RESULT_MAP, e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
+        throw new CommentException(Constants.ERROR, "Failed to serialize resultMap", e);
       }
       log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
           commentId, commentTreeToBeUpdated.getCommentTreeId());

@@ -56,6 +56,7 @@ class CommentTreeServiceImplTest {
         // Mock the ValueOperations.set(...) method to do nothing
         ReflectionTestUtils.setField(commentTreeService, "jwtSecretKey", "testSecret");
         ReflectionTestUtils.setField(commentTreeService, "redisTtl", 300L);
+        ReflectionTestUtils.setField(commentTreeService, "redisTemplate", redisTemplate);
     }
 
     @Test
@@ -144,14 +145,10 @@ class CommentTreeServiceImplTest {
     }
 
     @Test
-    void testFindTargetNode_recursivelyFindsTarget() {
+    void testFindTargetNode_recursivelyFindsTarget() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         String json = "[{\"commentId\": \"1\", \"children\": [{\"commentId\": \"2\"}]}]";
-        JsonNode node = null;
-        try {
-            node = mapper.readTree(json);
-        } catch (Exception e) {
-        }
+        JsonNode node = mapper.readTree(json);
 
         JsonNode result = CommentTreeServiceImpl.findTargetNode(node, new String[]{"1", "2"}, 0);
         assertNotNull(result);

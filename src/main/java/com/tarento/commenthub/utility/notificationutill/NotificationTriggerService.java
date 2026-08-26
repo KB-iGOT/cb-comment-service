@@ -65,8 +65,10 @@ public class NotificationTriggerService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
 
-            ResponseEntity<Map> serviceResponse = restTemplate.postForEntity(serverConfig.getNotificationApiUrl()
-                    , request, Map.class);
+            @SuppressWarnings("unchecked")
+            ResponseEntity<Map<String, Object>> serviceResponse =
+                    (ResponseEntity<Map<String, Object>>) (ResponseEntity<?>) restTemplate.postForEntity(
+                            serverConfig.getNotificationApiUrl(), request, Map.class);
             if (serviceResponse.getStatusCode().is2xxSuccessful()) {
                 log.info("NotificationTriggerService::sendNotification success");
             } else {

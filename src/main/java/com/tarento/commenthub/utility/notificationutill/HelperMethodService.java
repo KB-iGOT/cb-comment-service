@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.commenthub.constant.Constants;
+import com.tarento.commenthub.exception.CommentException;
 import com.tarento.commenthub.service.ContentService;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import com.tarento.commenthub.utility.RedisCacheMngr;
@@ -114,7 +115,7 @@ public class HelperMethodService {
                 resultMap = objectMapper.readValue(redisResults, new TypeReference<Map<String, Object>>() {
                 });
             } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+                throw new CommentException(Constants.ERROR, e.getMessage(), e);
             }
             Object nameObj = resultMap.get(Constants.FIRST_NAME_KEY);
 
