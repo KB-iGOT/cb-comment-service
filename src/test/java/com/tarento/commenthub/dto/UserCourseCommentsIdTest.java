@@ -57,13 +57,13 @@ class UserCourseCommentsIdTest {
     @Test
     void testEquals_calledDirectlyWithNull_returnsFalse() {
         UserCourseCommentsId id = new UserCourseCommentsId("user", "course");
-        assertFalse(id.equals(null));
+        assertNotEquals(null, id);
     }
 
     @Test
     void testEquals_calledDirectlyWithDifferentClass_returnsFalse() {
         UserCourseCommentsId id = new UserCourseCommentsId("user", "course");
-        assertFalse(id.equals("someString"));
+        assertNotEquals("someString", id);
     }
 
     @Test

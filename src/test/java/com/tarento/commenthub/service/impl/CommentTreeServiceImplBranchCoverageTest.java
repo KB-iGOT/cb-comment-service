@@ -75,13 +75,12 @@ class CommentTreeServiceImplBranchCoverageTest {
     void setUp() {
         ReflectionTestUtils.setField(commentTreeService, "jwtSecretKey", "testSecret");
         ReflectionTestUtils.setField(commentTreeService, "redisTtl", 300L);
+        ReflectionTestUtils.setField(commentTreeService, "redisTemplate", redisTemplate);
     }
 
-    // ---------------------------------------------------------------------
     // createCommentTree - redis-serialization catch(JsonProcessingException) block.
     // No existing test forces objectMapper.writeValueAsString(...) to fail for this method,
     // so that catch block (and the "Failed to serialize resultMap" wrapping) never runs.
-    // ---------------------------------------------------------------------
 
     @Test
     void createCommentTree_redisSerializationFails_wrapsInCommentException() throws Exception {
@@ -100,10 +99,8 @@ class CommentTreeServiceImplBranchCoverageTest {
         assertTrue(ex.getMessage().contains("Failed to serialize resultMap"));
     }
 
-    // ---------------------------------------------------------------------
     // updateCommentTree - same redis-serialization catch block, but this method's own
     // copy of the try/catch (separate bytecode from createCommentTree's).
-    // ---------------------------------------------------------------------
 
     @Test
     void updateCommentTree_redisSerializationFails_wrapsInCommentException() throws Exception {

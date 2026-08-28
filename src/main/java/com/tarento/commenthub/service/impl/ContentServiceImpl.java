@@ -104,13 +104,13 @@ public class ContentServiceImpl implements ContentService {
       log.info("ContentServiceImpl::readContent:read the content");
       return (Map<String, Object>) contentResult.get(Constants.CONTENT);
     }
-    return null;
+    return Collections.emptyMap();
   }
 
   public Object fetchResult(String uri) {
     log.info("ContentServiceImpl::fetchResult:inside");
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
     Object response = null;
     try {
       if (log.isDebugEnabled()) {
@@ -127,13 +127,17 @@ public class ContentServiceImpl implements ContentService {
             new TypeReference<HashMap<String, Object>>() {
             });
       } catch (Exception e1) {
+        // Best-effort parse of the error response body; if it isn't valid JSON,
+        // fall through and keep response as-is, the original error is logged below.
       }
       log.error("Error received: " + e.getResponseBodyAsString(), e);
     } catch (Exception e) {
       log.error(e.toString());
       try {
-        log.warn("Error Response: " + mapper.writeValueAsString(response));
+        log.warn("Error Response: " + objectMapper.writeValueAsString(response));
       } catch (Exception e1) {
+        // Best-effort diagnostic logging of the response; failures here are
+        // non-critical and shouldn't mask the original exception caught above.
       }
     }
     return response;

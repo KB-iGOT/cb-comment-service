@@ -238,8 +238,7 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
         
         List<Comment> comments = createMockCommentsWithNullData();
         Page<Comment> commentPage = new PageImpl<>(comments);
-        Map<String, Object> expectedResult = new HashMap<>();
-        
+
         when(commentRepository.findByCommentIdIn(eq(childNodeList), any(Pageable.class)))
                 .thenReturn(commentPage);
 

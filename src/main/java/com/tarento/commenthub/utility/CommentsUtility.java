@@ -4,6 +4,10 @@ import java.util.List;
 
 public class CommentsUtility {
 
+  private CommentsUtility() {
+    throw new IllegalStateException("Utility class");
+  }
+
   public static boolean containsNull(List<?> list) {
     if (list == null) {
       return true;

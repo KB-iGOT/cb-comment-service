@@ -61,6 +61,7 @@ class CommentServiceImplPaginatedCommentV3Test {
     void setUp() {
         ReflectionTestUtils.setField(commentService, "jwtSecretKey", "testSecret");
         ReflectionTestUtils.setField(commentService, "redisTtl", 3600L);
+        ReflectionTestUtils.setField(commentService, "redisTemplate", redisTemplate);
     }
 
     @Test

@@ -120,6 +120,7 @@ class CommentServiceImplBranchCoverageTest {
         ReflectionTestUtils.setField(commentService, "redisTtl", 1000L);
         ReflectionTestUtils.setField(commentService, "defaultLimit", 10);
         ReflectionTestUtils.setField(commentService, "defaultOffset", 0);
+        ReflectionTestUtils.setField(commentService, "redisTemplate", redisTemplate);
     }
 
     // ---------------------------------------------------------------------
@@ -128,7 +129,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_missingCommentId_throwsCommentException() {
-        ObjectNode payload = buildUpdatePayload("", "tree123", "user1", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("", "tree123", "user1", "Updated text");
 
         CommentException ex = assertThrows(CommentException.class,
                 () -> commentService.updateExistingComment(payload));
@@ -139,7 +140,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_commentNotFound_throwsCommentException() {
-        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "Updated text");
         when(commentRepository.findById("comment123")).thenReturn(Optional.empty());
 
         CommentException ex = assertThrows(CommentException.class,
@@ -150,7 +151,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_commentInactive_throwsCommentException() {
-        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "Updated text");
         Comment existing = buildExistingComment("comment123", "user1", "inactive", 0);
         when(commentRepository.findById("comment123")).thenReturn(Optional.of(existing));
 
@@ -162,7 +163,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_unauthorizedUser_throwsCommentException() {
-        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "different-user", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "different-user", "Updated text");
         Comment existing = buildExistingComment("comment123", "user1", "active", 0);
         when(commentRepository.findById("comment123")).thenReturn(Optional.of(existing));
 
@@ -174,7 +175,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_redisFailure_isSwallowedAndResponseStillReturned() {
-        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "Updated text");
         Comment existing = buildExistingComment("comment123", "user1", "active", 5);
         CommentTree tree = new CommentTree();
         tree.setCommentTreeId("tree123");
@@ -193,7 +194,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_fetchCommentTreeFails_throwsRuntimeException() {
-        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "Updated text");
         Comment existing = buildExistingComment("comment123", "user1", "active", 5);
 
         when(commentRepository.findById("comment123")).thenReturn(Optional.of(existing));
@@ -394,7 +395,7 @@ class CommentServiceImplBranchCoverageTest {
 
     @Test
     void updateExistingComment_noExistingLikeField_success() {
-        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "user1", "Updated text");
+        ObjectNode payload = buildUpdatePayload("comment123", "tree123", "user1", "Updated text");
         // likeCount = 0 -> buildExistingComment does NOT put a "like" field, so the
         // `has(LIKE) && !get(LIKE).isNull()` guard in updateExistingComment must take its false branch.
         Comment existing = buildExistingComment("comment123", "user1", "active", 0);
@@ -486,7 +487,7 @@ class CommentServiceImplBranchCoverageTest {
     void fetchCommentFromPrimary_taggedUserFallsBackToPrimary_andSkipsCourseDetailsWhenNoEntityId()
             throws Exception {
         Method method = CommentServiceImpl.class.getDeclaredMethod("fetchCommentFromPrimary",
-                int.class, int.class, List.class, CommentTree.class, boolean.class, String.class);
+                int.class, int.class, List.class, CommentTree.class, String.class);
         method.setAccessible(true);
 
         Comment comment = new Comment();
@@ -516,7 +517,7 @@ class CommentServiceImplBranchCoverageTest {
 
         @SuppressWarnings("unchecked")
         Map<String, Object> result = (Map<String, Object>) method.invoke(
-                commentService, 0, 10, List.of("c1"), tree, false, "v1");
+                commentService, 0, 10, List.of("c1"), tree, "v1");
 
         assertNotNull(result);
         verify(fetchUser).fetchUserFromprimary(anyList());
@@ -685,11 +686,9 @@ class CommentServiceImplBranchCoverageTest {
         assertTrue(ex.getMessage().contains("Failed to serialize resultMap"));
     }
 
-    // ---------------------------------------------------------------------
     // paginatedCommentV3 - the initial redis lookup is wrapped in a broad catch(Exception) that
     // simply logs and falls through to the postgres lookup. None of the existing V3 tests force
     // this specific path (redis itself failing, as opposed to a cache miss).
-    // ---------------------------------------------------------------------
 
     @Test
     void paginatedCommentV3_redisLookupThrows_fallsBackToPostgresNotFound() {
@@ -751,7 +750,7 @@ class CommentServiceImplBranchCoverageTest {
     // ---------------------------------------------------------------------
 
     private ObjectNode buildUpdatePayload(String commentId, String commentTreeId, String sourceUserId,
-            String existingRecordUserId, String commentText) {
+            String commentText) {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put(Constants.COMMENT_ID, commentId);
         payload.put(Constants.COMMENT_TREE_ID, commentTreeId);

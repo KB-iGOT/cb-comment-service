@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tarento.commenthub.cache.CacheService;
 import com.tarento.commenthub.constant.Constants;
+import com.tarento.commenthub.exception.CommentException;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,14 +54,13 @@ public class FetchUserDetails {
 
   public List<Object> fetchUserFromprimary(List<String> userIds) {
     log.info("FetchUserDetails::fetchUserFromprimary::fetching userDetails from primaryDb");
-    List<Object> userList = new ArrayList<>();
     Map<String, Object> propertyMap = new HashMap<>();
     propertyMap.put(Constants.ID, userIds);
     List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
         Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER, propertyMap,
         Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID), null);
 
-    userList = userInfoList.stream()
+    List<Object> userList = userInfoList.stream()
         .map(userInfo -> {
           Map<String, Object> userMap = new HashMap<>();
 
@@ -82,22 +82,22 @@ public class FetchUserDetails {
               // Check for profile image and add to userMap if available
               if (MapUtils.isNotEmpty(profileDetailsMap)) {
                 if (profileDetailsMap.containsKey(Constants.PROFILE_IMG) && StringUtils.isNotBlank((String) profileDetailsMap.get(Constants.PROFILE_IMG))){
-                  userMap.put(Constants.PROFILE_IMG_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
+                  userMap.put(Constants.PROFILE_IMG_KEY, profileDetailsMap.get(Constants.PROFILE_IMG));
                 }
                 if (profileDetailsMap.containsKey(Constants.DESIGNATION_KEY) && StringUtils.isNotEmpty((String) profileDetailsMap.get(Constants.DESIGNATION_KEY))) {
 
-                  userMap.put(Constants.DESIGNATION_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
+                  userMap.put(Constants.DESIGNATION_KEY, profileDetailsMap.get(Constants.PROFILE_IMG));
                 }
                 if(profileDetailsMap.containsKey(Constants.EMPLOYMENT_DETAILS) && MapUtils.isNotEmpty(
                     (Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)) && ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).containsKey(Constants.DEPARTMENT_KEY) && StringUtils.isNotBlank(
                     (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY))){
-                  userMap.put(Constants.DEPARTMENT, (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
+                  userMap.put(Constants.DEPARTMENT, ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
 
                 }
 
               }
             } catch (JsonProcessingException e) {
-              throw new RuntimeException(e);
+              throw new CommentException(Constants.ERROR, e.getMessage());
             }
           }
 
