@@ -32,9 +32,9 @@ public interface CassandraOperation {
      * @param request      A map representing the record to insert.
      * @return An object representing the result of the insertion operation.
      */
-    public Object insertRecord(String keyspaceName, String tableName, Map<String, Object> request);
+    Object insertRecord(String keyspaceName, String tableName, Map<String, Object> request);
 
-    public List<Map<String, Object>> getRecordsByPropertiesWithoutFiltering(String keyspaceName, String tableName,
+    List<Map<String, Object>> getRecordsByPropertiesWithoutFiltering(String keyspaceName, String tableName,
         Map<String, Object> propertyMap, List<String> fields, Integer limit);
 
 

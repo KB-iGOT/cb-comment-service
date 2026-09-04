@@ -78,9 +78,6 @@ public class ContentServiceImpl implements ContentService {
           responseData = readContent(contentId);
         }
       }
-    } else {
-      // We are going to send the data read from which might have more fields.
-      // This is fine for now.
     }
     log.info("ContentServiceImpl::readContentFromCache");
     return responseData;
@@ -127,6 +124,7 @@ public class ContentServiceImpl implements ContentService {
             new TypeReference<HashMap<String, Object>>() {
             });
       } catch (Exception e1) {
+        log.error("Failed to parse error response body: " + e1.getMessage(), e1);
       }
       log.error("Error received: " + e.getResponseBodyAsString(), e);
     } catch (Exception e) {
@@ -134,6 +132,7 @@ public class ContentServiceImpl implements ContentService {
       try {
         log.warn("Error Response: " + mapper.writeValueAsString(response));
       } catch (Exception e1) {
+        log.error("Failed to serialize error response for logging: " + e1.getMessage(), e1);
       }
     }
     return response;

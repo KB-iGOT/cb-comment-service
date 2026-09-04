@@ -390,12 +390,6 @@ public class CommentServiceImpl implements CommentService {
     }
   }
 
-  private List<String> getKeys(List<String> childNodeList) {
-    return childNodeList.stream().map(id -> COMMENT_KEY + id)
-        .collect(Collectors.toList());
-  }
-
-
   //need for refactoring later
   @Override
   public ApiResponse likeComment(Map<String, Object> likePayload) {
@@ -552,7 +546,7 @@ public class CommentServiceImpl implements CommentService {
         throw new RuntimeException("Failed to deserialize JSON", e);
       }
     } else {
-      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), searchCriteria.isEnrichedUser(), version);
+      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), version);
       try {
         // Serialize resultMap to JSON
         String resultMapJson = objectMapper.writeValueAsString(resultMap);
@@ -569,7 +563,7 @@ public class CommentServiceImpl implements CommentService {
     }
     if (MapUtils.isEmpty(resultMap)) {
       log.info("CommentServiceImpl::getComments::fetch Comments from postgres");
-      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), searchCriteria.isEnrichedUser(), version);
+      resultMap = fetchCommentFromPrimary(offset, limit, childNodeList, commentTree.get(), version);
       try {
         // Serialize resultMap to JSON
         String resultMapJson = objectMapper.writeValueAsString(resultMap);
@@ -591,7 +585,7 @@ public class CommentServiceImpl implements CommentService {
   }
 
   private Map<String, Object> fetchCommentFromPrimary(int offset, int limit,
-      List<String> childNodeList, CommentTree commentTree, boolean isUserEnriched, String version) {
+      List<String> childNodeList, CommentTree commentTree, String version) {
     Map<String, Object> resultMap = new HashMap<>();
     Pageable pageable = PageRequest.of(offset, limit,
         Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE));
@@ -690,8 +684,6 @@ public class CommentServiceImpl implements CommentService {
       return returnErrorMsg("Bad rqst", HttpStatus.BAD_REQUEST, response);
     }
     //added sorting
-    int offset = defaultOffset;
-    int limit = defaultLimit;
     Sort sort = Sort.by(Sort.Direction.DESC, Constants.CREATED_DATE);
     List<String> statuses = Arrays.asList(Status.ACTIVE.name().toLowerCase(),
         Status.SUSPENDED.name().toLowerCase());
@@ -1049,12 +1041,11 @@ public class CommentServiceImpl implements CommentService {
         // Check if the list is empty
         if (reportedReasonList.isEmpty()) {
           errList.add(Constants.REPORTED_REASON);
-        } else if (reportedReasonList.contains("Others")) {
-          // Check if OTHER_REASON is provided
-          if (!request.containsKey(Constants.OTHER_REASON) ||
-              StringUtils.isBlank((String) request.get(Constants.OTHER_REASON))) {
-            errList.add(Constants.OTHER_REASON);
-          }
+        } else if (reportedReasonList.contains("Others")
+            && (!request.containsKey(Constants.OTHER_REASON)
+                || StringUtils.isBlank((String) request.get(Constants.OTHER_REASON)))) {
+          // OTHER_REASON must be provided when "Others" is selected
+          errList.add(Constants.OTHER_REASON);
         }
       } else {
         // If REPORTED_REASON is not a list, add an error
@@ -1077,8 +1068,10 @@ public class CommentServiceImpl implements CommentService {
     StringBuffer str = new StringBuffer();
     List<String> errList = new ArrayList<>();
 
-    if (StringUtils.isBlank(searchCriteria.getCommentTreeId())) {
-      if(searchCriteria.getEntityType().isEmpty() && searchCriteria.getEntityType().isEmpty() && searchCriteria.getWorkflow().isEmpty())
+    if (StringUtils.isBlank(searchCriteria.getCommentTreeId())
+        && StringUtils.isEmpty(searchCriteria.getEntityType())
+        && StringUtils.isEmpty(searchCriteria.getEntityId())
+        && StringUtils.isEmpty(searchCriteria.getWorkflow())) {
       errList.add(Constants.COMMENT_TREE_ID);
     }
     if (!errList.isEmpty()) {
