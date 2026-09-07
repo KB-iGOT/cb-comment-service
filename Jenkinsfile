@@ -23,7 +23,7 @@ node() {
 				echo "CHANGE_BRANCH = ${env.CHANGE_BRANCH}"
 				echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
 				
-                commit_hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                def commit_hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 			
 				if (params.github_release_tag) {
     				build_tag = "${params.github_release_tag.split('/')[-1]}_${commit_hash}_${env.BUILD_NUMBER}"
@@ -38,7 +38,10 @@ node() {
                build job: "Build/CodeReview/${JOB_BASE_NAME}", wait: true
 	     }
         }
-
+		echo "docker_pre_build = ${env.docker_pre_build}"
+		echo "docker_server = ${env.docker_server}"
+		echo "enable_code_analysis = ${params.enable_code_analysis}"
+			
         stage('docker-pre-build') {
             sh '''
 	    docker build -f ./Dockerfile.build -t $docker_pre_build .
