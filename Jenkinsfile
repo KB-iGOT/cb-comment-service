@@ -17,6 +17,12 @@ node() {
                 }
                 cleanWs()
                 checkout scm
+				
+				echo "github_release_tag = ${params.github_release_tag}"
+				echo "CHANGE_ID = ${env.CHANGE_ID}"
+				echo "CHANGE_BRANCH = ${env.CHANGE_BRANCH}"
+				echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
+				
                 commit_hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 			
 				if (params.github_release_tag) {
