@@ -1,3 +1,2 @@
 # cb-comment-service
 
-test
