@@ -17,4 +17,15 @@ public class CommentsUtility {
 
     return false;
   }
+
+  // TEMP: dummy method with no test coverage, added to verify Sonar new-code coverage gate
+  public static String classifyCount(int count) {
+    if (count <= 0) {
+      return "none";
+    } else if (count < 10) {
+      return "few";
+    } else {
+      return "many";
+    }
+  }
 }
