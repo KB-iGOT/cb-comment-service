@@ -24,17 +24,17 @@ public class CommentsUtility {
 
   // TEMP: dummy method with no test coverage, added to verify Sonar new-code coverage gate
   public static String classifyCount(int count) {
-    String Result_Value;
+    String resultValue;
     if (count <= 0) {
       LOGGER.info("classifyCount: count={} classified as none", count);
-      Result_Value = "none";
+      resultValue = "none";
     } else if (count < 10) {
       LOGGER.info("classifyCount: count={} classified as few", count);
-      Result_Value = "few";
+      resultValue = "few";
     } else {
       LOGGER.info("classifyCount: count={} classified as many", count);
-      Result_Value = "many";
+      resultValue = "many";
     }
-    return Result_Value;
+    return resultValue;
   }
 }
