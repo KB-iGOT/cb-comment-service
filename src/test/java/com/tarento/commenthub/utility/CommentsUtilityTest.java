@@ -33,4 +33,26 @@ class CommentsUtilityTest {
         List<Object> list = Collections.emptyList();
         assertFalse(CommentsUtility.containsNull(list));
     }
+
+    @Test
+    void testClassifyCount_whenCountIsZero() {
+        assertEquals("none", CommentsUtility.classifyCount(0));
+    }
+
+    @Test
+    void testClassifyCount_whenCountIsNegative() {
+        assertEquals("none", CommentsUtility.classifyCount(-5));
+    }
+
+    @Test
+    void testClassifyCount_whenCountIsBetweenOneAndNine() {
+        assertEquals("few", CommentsUtility.classifyCount(1));
+        assertEquals("few", CommentsUtility.classifyCount(9));
+    }
+
+    @Test
+    void testClassifyCount_whenCountIsTenOrMore() {
+        assertEquals("many", CommentsUtility.classifyCount(10));
+        assertEquals("many", CommentsUtility.classifyCount(100));
+    }
 }

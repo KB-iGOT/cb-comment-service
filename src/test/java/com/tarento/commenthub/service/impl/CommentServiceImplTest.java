@@ -122,6 +122,10 @@ class CommentServiceImplTest {
         ReflectionTestUtils.setField(commentService, "defaultOffset", 0);
         ReflectionTestUtils.setField(commentService, "jwtSecretKey", "dummysecret");
         ReflectionTestUtils.setField(commentService, "redisTtl", 1000L);
+        // Two RedisTemplate-typed mocks exist in this test class (redisTemplate, redisTemplateEx);
+        // pin the production field to the one this suite actually stubs, since Mockito's
+        // constructor-injection can't disambiguate same-type mocks on its own.
+        ReflectionTestUtils.setField(commentService, "redisTemplate", redisTemplateEx);
     }
 
 
