@@ -189,5 +189,277 @@ class CommentTreeServiceImplMethodTest {
         verify(commentTreeRepository, never()).save(any());
         verify(valueOps, never()).set(any(), any(), anyLong(), any());
     }
+
+    @Test
+    void test_loopExitsEarlyWhenMatchFoundBeforeLastElement() {
+        // Two top-level comments, with the parent match occurring at index 0.
+        // Exercises the for-loop condition's "matchIndex < 0 becomes false while
+        // i < comments.size() is still true" early-exit branch.
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+
+        ObjectNode parentComment = mapper.createObjectNode();
+        parentComment.put(Constants.COMMENT_ID, PARENT_ID);
+        ObjectNode childEntry = mapper.createObjectNode();
+        childEntry.put(Constants.COMMENT_ID, COMMENT_ID);
+        ArrayNode children = mapper.createArrayNode().add(childEntry);
+        parentComment.set(Constants.CHILDREN, children);
+
+        ObjectNode secondComment = mapper.createObjectNode();
+        secondComment.put(Constants.COMMENT_ID, "secondTopLevel");
+
+        ArrayNode comments = mapper.createArrayNode().add(parentComment).add(secondComment);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode());
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, PARENT_ID);
+
+        // The only child was removed, so the now-empty CHILDREN array is pruned
+        // from the parent entirely (see removeChildComment's isEmpty() cleanup).
+        assertFalse(parentComment.has(Constants.CHILDREN));
+        assertEquals(2, comments.size());
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_emptyStringParentId_treatedAsTopLevelDeletion() {
+        // parentId = "" exercises the parentId.isEmpty() disjunct on line 302,
+        // and the !parentId.isEmpty() false short-circuit on line 299.
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode commentNode = mapper.createObjectNode();
+        commentNode.put(Constants.COMMENT_ID, COMMENT_ID);
+        ArrayNode comments = mapper.createArrayNode().add(commentNode);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, "");
+
+        assertEquals(0, comments.size());
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_literalNullStringParentId_treatedAsTopLevelDeletion() {
+        // parentId = "null" (the literal string) exercises the
+        // "null".equalsIgnoreCase(parentId) disjunct on line 302, combined with a
+        // non-null/non-empty parentId that doesn't match any comment on line 299.
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode commentNode = mapper.createObjectNode();
+        commentNode.put(Constants.COMMENT_ID, COMMENT_ID);
+        ArrayNode comments = mapper.createArrayNode().add(commentNode);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, "null");
+
+        assertEquals(0, comments.size());
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_nonMatchingParentId_noRemovalButStillSaves() {
+        // parentId is non-null/non-empty but matches no comment, so line 299 is
+        // false and the left-hand disjunction on line 302 is also false
+        // (short-circuiting before the commentId check). Nothing should be
+        // removed, yet removeFromComments still returns true so save proceeds.
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode commentNode = mapper.createObjectNode();
+        commentNode.put(Constants.COMMENT_ID, "unrelatedComment");
+        ArrayNode comments = mapper.createArrayNode().add(commentNode);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode());
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, "nonMatchingParent");
+
+        assertEquals(1, comments.size());
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_nullParentIdWithMismatchedCommentId_noRemoval() {
+        // parentId == null makes the left-hand disjunction on line 302 true, but
+        // commentId doesn't match, making commentId.equalsIgnoreCase(...) false -
+        // covering the "left true, right false" combination on line 302/303.
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode commentNode = mapper.createObjectNode();
+        commentNode.put(Constants.COMMENT_ID, "unrelatedComment");
+        ArrayNode comments = mapper.createArrayNode().add(commentNode);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode());
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, null);
+
+        assertEquals(1, comments.size());
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_removeChildComment_whenParentHasNoChildrenField_returnsEarly() {
+        // matchIsChildOfParent is true, but the matched parent node has no
+        // CHILDREN field at all, so removeChildComment must return immediately
+        // without throwing (covers the children == null branch).
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode parentComment = mapper.createObjectNode();
+        parentComment.put(Constants.COMMENT_ID, PARENT_ID);
+        // Intentionally no CHILDREN field on parentComment.
+
+        ArrayNode comments = mapper.createArrayNode().add(parentComment);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode());
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        assertDoesNotThrow(() ->
+                commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, PARENT_ID));
+
+        assertFalse(parentComment.has(Constants.CHILDREN));
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_removeChildComment_whenTargetChildNotPresentAmongSiblings_loopCompletesWithoutMatch() {
+        // The children array has entries, but none match the commentId being
+        // removed, so the inner for-loop runs to completion without hitting the
+        // break at line 330 (covers the natural loop-exhaustion exit).
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode parentComment = mapper.createObjectNode();
+        parentComment.put(Constants.COMMENT_ID, PARENT_ID);
+
+        ObjectNode siblingA = mapper.createObjectNode();
+        siblingA.put(Constants.COMMENT_ID, "siblingA");
+        ObjectNode siblingB = mapper.createObjectNode();
+        siblingB.put(Constants.COMMENT_ID, "siblingB");
+        ArrayNode children = mapper.createArrayNode().add(siblingA).add(siblingB);
+        parentComment.set(Constants.CHILDREN, children);
+
+        ArrayNode comments = mapper.createArrayNode().add(parentComment);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode());
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, PARENT_ID);
+
+        assertEquals(2, parentComment.get(Constants.CHILDREN).size());
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
+
+    @Test
+    void test_removeChildComment_whenSiblingsRemainAfterRemoval_keepsChildrenArray() {
+        // After removing the matched child, siblings remain, so
+        // children.isEmpty() is false and the CHILDREN field must NOT be
+        // removed from the parent (covers the isEmpty()==false branch).
+        CommentTreeIdentifierDTO dto = new CommentTreeIdentifierDTO("entityType", "entityId", "workflow");
+        CommentTree tree = new CommentTree();
+        tree.setCommentTreeId(COMMENT_TREE_ID);
+
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode jsonNode = mapper.createObjectNode();
+        ObjectNode parentComment = mapper.createObjectNode();
+        parentComment.put(Constants.COMMENT_ID, PARENT_ID);
+
+        ObjectNode targetChild = mapper.createObjectNode();
+        targetChild.put(Constants.COMMENT_ID, COMMENT_ID);
+        ObjectNode siblingB = mapper.createObjectNode();
+        siblingB.put(Constants.COMMENT_ID, "siblingB");
+        ArrayNode children = mapper.createArrayNode().add(targetChild).add(siblingB);
+        parentComment.set(Constants.CHILDREN, children);
+
+        ArrayNode comments = mapper.createArrayNode().add(parentComment);
+
+        jsonNode.set(Constants.CHILD_NODES, mapper.createArrayNode().add(COMMENT_ID));
+        jsonNode.set(Constants.FIRST_LEVEL_NODES, mapper.createArrayNode());
+        jsonNode.set(Constants.COMMENTS, comments);
+
+        tree.setCommentTreeData(jsonNode);
+        when(commentTreeRepository.findById(anyString())).thenReturn(Optional.of(tree));
+        when(objectMapper.convertValue(any(JsonNode.class), eq(Map.class))).thenReturn(Map.of("dummy", "data"));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+
+        commentTreeService.updateCommentTreeForDeletedComment(COMMENT_ID, dto, PARENT_ID);
+
+        assertEquals(1, parentComment.get(Constants.CHILDREN).size());
+        assertTrue(parentComment.has(Constants.CHILDREN));
+        verify(commentTreeRepository).save(any(CommentTree.class));
+    }
 }
 

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.tarento.commenthub.utility.CbServerProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -23,15 +23,18 @@ import static com.tarento.commenthub.constant.Constants.*;
 @Slf4j
 public class NotificationTriggerService {
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate;
 
-    @Autowired
-    private CbServerProperties serverConfig;
+    private final CbServerProperties serverConfig;
 
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    public NotificationTriggerService(RestTemplate restTemplate, CbServerProperties serverConfig,
+        ObjectMapper objectMapper) {
+      this.restTemplate = restTemplate;
+      this.serverConfig = serverConfig;
+      this.objectMapper = objectMapper;
+    }
 
     public void sendNotification(
             String subCategory,
@@ -65,8 +68,9 @@ public class NotificationTriggerService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
 
-            ResponseEntity<Map> serviceResponse = restTemplate.postForEntity(serverConfig.getNotificationApiUrl()
-                    , request, Map.class);
+            ResponseEntity<Map<String, Object>> serviceResponse = restTemplate.exchange(
+                    serverConfig.getNotificationApiUrl(), HttpMethod.POST, request,
+                    new ParameterizedTypeReference<Map<String, Object>>() {});
             if (serviceResponse.getStatusCode().is2xxSuccessful()) {
                 log.info("NotificationTriggerService::sendNotification success");
             } else {

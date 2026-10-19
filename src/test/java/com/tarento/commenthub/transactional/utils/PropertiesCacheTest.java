@@ -8,12 +8,12 @@ import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PropertiesCacheTest {
+class PropertiesCacheTest {
     private PropertiesCache propertiesCache;
 
     @BeforeEach
     void setUp() throws Exception {
-        propertiesCache = PropertiesCache.getInstance();
+        propertiesCache = new PropertiesCache();
 
         // Inject fake properties into configProp using reflection
         Field field = PropertiesCache.class.getDeclaredField("configProp");
@@ -24,19 +24,9 @@ public class PropertiesCacheTest {
     }
 
     @Test
-    void testGetInstanceReturnsSingleton() {
-        PropertiesCache first = PropertiesCache.getInstance();
-        PropertiesCache second = PropertiesCache.getInstance();
-
-        assertNotNull(first);
-        assertSame(first, second, "Should return same singleton instance");
-    }
-
-    @Test
-    void testGetProperty_EnvVariableOverrides() throws Exception {
+    void testGetProperty_EnvVariableOverrides() {
         // Simulate System.getenv() override via reflection
         String envKey = "TEST_ENV_KEY";
-        String envValue = "envValue";
 
         // Call getProperty with key not in configProp
         String result = propertiesCache.getProperty(envKey);
@@ -67,5 +57,17 @@ public class PropertiesCacheTest {
     void testReadProperty_NullWhenNotFound() {
         String result = propertiesCache.readProperty("nonExistentKey");
         assertNull(result, "Should return null if property not found");
+    }
+
+    @Test
+    void testGetProperty_EnvVariablePresent() {
+        String result = propertiesCache.getProperty("PATH");
+        assertEquals(System.getenv("PATH"), result, "Should return env value when present");
+    }
+
+    @Test
+    void testReadProperty_EnvVariablePresent() {
+        String result = propertiesCache.readProperty("PATH");
+        assertEquals(System.getenv("PATH"), result, "Should return env value when present");
     }
 }

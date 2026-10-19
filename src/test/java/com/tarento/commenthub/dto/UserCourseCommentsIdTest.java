@@ -54,5 +54,13 @@ class UserCourseCommentsIdTest {
         UserCourseCommentsId id = new UserCourseCommentsId("user", "course");
         assertEquals(id, id); // should be equal to itself
     }
+
+    @Test
+    void testEqualsSameUserDifferentCourse() {
+        UserCourseCommentsId id1 = new UserCourseCommentsId("user1", "course1");
+        UserCourseCommentsId id4 = new UserCourseCommentsId("user1", "course2");
+        assertNotEquals(id1, id4);
+        assertNotEquals(id1.hashCode(), id4.hashCode());
+    }
 }
 

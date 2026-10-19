@@ -1,6 +1,5 @@
 package com.tarento.commenthub.dto;
 
-import jnr.ffi.annotations.In;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

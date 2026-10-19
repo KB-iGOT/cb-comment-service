@@ -10,7 +10,6 @@ import com.tarento.commenthub.repository.CommentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -36,13 +35,14 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
     @Mock
     private ObjectMapper objectMapper;
 
-    @InjectMocks
     private CommentServiceImpl commentService;
 
     private Method fetchCommentFromPrimaryV3Method;
 
     @BeforeEach
     void setUp() throws Exception {
+        commentService = new CommentServiceImpl(commentRepository, null, objectMapper, null, null,
+            null, null, fetchUser, null, null, null);
         fetchCommentFromPrimaryV3Method = CommentServiceImpl.class.getDeclaredMethod(
                 "fetchCommentFromPrimaryV3", int.class, int.class, List.class, String.class);
         fetchCommentFromPrimaryV3Method.setAccessible(true);
@@ -230,7 +230,7 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
     }
 
     @Test
-    void testFetchCommentFromPrimaryV3_NullCommentData() throws Exception {
+    void testFetchCommentFromPrimaryV3_NullCommentData() {
         // Arrange
         int offset = 0, limit = 10;
         List<String> childNodeList = Arrays.asList("comment1");
@@ -238,8 +238,7 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
         
         List<Comment> comments = createMockCommentsWithNullData();
         Page<Comment> commentPage = new PageImpl<>(comments);
-        Map<String, Object> expectedResult = new HashMap<>();
-        
+
         when(commentRepository.findByCommentIdIn(eq(childNodeList), any(Pageable.class)))
                 .thenReturn(commentPage);
 
@@ -247,7 +246,7 @@ class CommentServiceImplFetchCommentFromPrimaryV3Test {
         Exception exception = assertThrows(Exception.class, () -> {
             fetchCommentFromPrimaryV3Method.invoke(commentService, offset, limit, childNodeList, commentTreeId);
         });
-        
+
         assertTrue(exception.getCause() instanceof NullPointerException);
     }
 

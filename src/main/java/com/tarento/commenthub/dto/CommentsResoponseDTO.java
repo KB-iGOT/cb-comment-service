@@ -1,6 +1,5 @@
 package com.tarento.commenthub.dto;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.tarento.commenthub.entity.Comment;
 import com.tarento.commenthub.entity.CommentTree;
 import java.util.List;
@@ -68,7 +67,6 @@ public class CommentsResoponseDTO {
   public CommentsResoponseDTO(List<Comment> comments,
       List<Object> userList, List<Object> taggedUsers
       , String commentTreeId) {
-    this.commentTree = commentTree;
     this.comments = comments;
     this.users = userList;
     this.taggedUsers = taggedUsers;

@@ -14,7 +14,6 @@ import com.tarento.commenthub.repository.CommentTreeRepository;
 import com.tarento.commenthub.transactional.utils.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -47,7 +46,6 @@ class CommentServiceImplPaginatedCommentV3Test {
     @Mock
     private ObjectMapper objectMapper;
 
-    @InjectMocks
     private CommentServiceImpl commentService;
 
 
@@ -59,6 +57,8 @@ class CommentServiceImplPaginatedCommentV3Test {
 
     @BeforeEach
     void setUp() {
+        commentService = new CommentServiceImpl(commentRepository, null, objectMapper, redisTemplate,
+            null, commentTreeRepository, null, fetchUser, null, null, null);
         ReflectionTestUtils.setField(commentService, "jwtSecretKey", "testSecret");
         ReflectionTestUtils.setField(commentService, "redisTtl", 3600L);
     }
@@ -193,6 +193,173 @@ class CommentServiceImplPaginatedCommentV3Test {
         // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
+    }
+
+    @Test
+    void testPaginatedCommentV3_PaginatedCacheReadFails_fallsBackToPrimary() throws Exception {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setCommentTreeId("tree123");
+        searchCriteria.setLimit(10);
+        searchCriteria.setOffset(0);
+        searchCriteria.setOverrideCache(false);
+
+        Map<String, Object> commentResultMap = createMockCommentTreeData();
+        List<String> childNodeList = Arrays.asList("comment1", "comment2");
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(Constants.COMMENT_TREE_REDIS_KEY + "tree123"))
+                .thenReturn("{\"firstLevelNodes\":[\"comment1\",\"comment2\"]}");
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(commentResultMap);
+        when(objectMapper.valueToTree(any())).thenReturn(createMockJsonNode());
+        when(objectMapper.convertValue(any(JsonNode.class), eq(List.class)))
+                .thenReturn(childNodeList);
+        when(valueOperations.get(startsWith(Constants.COMMENT_KEY)))
+                .thenReturn("corrupted-json");
+        when(objectMapper.readValue(eq("corrupted-json"), any(TypeReference.class)))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("boom") {});
+
+        List<Comment> comments = createMockComments();
+        Page<Comment> commentPage = new PageImpl<>(comments);
+        List<Object> userList = createMockUserList();
+        Map<String, Object> expectedResult = new HashMap<>();
+
+        when(commentRepository.findByCommentIdIn(eq(childNodeList), any(Pageable.class)))
+                .thenReturn(commentPage);
+        when(fetchUser.fetchDataForKeys(anyList()))
+                .thenReturn(userList)
+                .thenReturn(null);
+        when(objectMapper.convertValue(any(CommentsResoponseDTO.class), eq(Map.class)))
+                .thenReturn(expectedResult);
+
+        ApiResponse response = commentService.paginatedCommentV3(searchCriteria);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(expectedResult, response.getResult());
+    }
+
+    @Test
+    void testPaginatedCommentV3_PaginatedCacheWriteFails_stillReturnsResult() throws Exception {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setCommentTreeId("tree123");
+        searchCriteria.setLimit(10);
+        searchCriteria.setOffset(0);
+        searchCriteria.setOverrideCache(false);
+
+        Map<String, Object> commentResultMap = createMockCommentTreeData();
+        List<String> childNodeList = Arrays.asList("comment1", "comment2");
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(Constants.COMMENT_TREE_REDIS_KEY + "tree123"))
+                .thenReturn("{\"firstLevelNodes\":[\"comment1\",\"comment2\"]}");
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(commentResultMap);
+        when(objectMapper.valueToTree(any())).thenReturn(createMockJsonNode());
+        when(objectMapper.convertValue(any(JsonNode.class), eq(List.class)))
+                .thenReturn(childNodeList);
+        when(valueOperations.get(startsWith(Constants.COMMENT_KEY)))
+                .thenReturn(null); // paginated cache miss -> fetch from primary, then try (and fail) to cache
+
+        List<Comment> comments = createMockComments();
+        Page<Comment> commentPage = new PageImpl<>(comments);
+        List<Object> userList = createMockUserList();
+        Map<String, Object> expectedResult = new HashMap<>();
+
+        when(commentRepository.findByCommentIdIn(eq(childNodeList), any(Pageable.class)))
+                .thenReturn(commentPage);
+        when(fetchUser.fetchDataForKeys(anyList()))
+                .thenReturn(userList)
+                .thenReturn(null);
+        when(objectMapper.convertValue(any(CommentsResoponseDTO.class), eq(Map.class)))
+                .thenReturn(expectedResult);
+        when(objectMapper.writeValueAsString(any()))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("boom") {});
+
+        ApiResponse response = commentService.paginatedCommentV3(searchCriteria);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(expectedResult, response.getResult());
+    }
+
+    @Test
+    void testPaginatedCommentV3_TreeMapCacheWriteFails_continuesGracefully() throws Exception {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setCommentTreeId("tree123");
+        searchCriteria.setLimit(10);
+        searchCriteria.setOffset(0);
+        searchCriteria.setOverrideCache(false);
+
+        List<String> childNodeList = Arrays.asList("comment1", "comment2");
+
+        ObjectMapper realMapper = new ObjectMapper();
+        ObjectNode treeData = realMapper.createObjectNode();
+        treeData.set(Constants.FIRST_LEVEL_NODES, realMapper.createArrayNode().add("comment1").add("comment2"));
+        com.tarento.commenthub.entity.CommentTree tree = new com.tarento.commenthub.entity.CommentTree();
+        tree.setCommentTreeData(treeData);
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(Constants.COMMENT_TREE_REDIS_KEY + "tree123")).thenReturn(null); // tree-map cache miss
+        when(commentTreeRepository.findById("tree123")).thenReturn(Optional.of(tree));
+
+        Map<String, Object> commentResultMap = createMockCommentTreeData();
+        when(objectMapper.convertValue(treeData, Map.class)).thenReturn(commentResultMap);
+        when(objectMapper.writeValueAsString(commentResultMap))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("boom") {});
+
+        when(objectMapper.valueToTree(any())).thenReturn(createMockJsonNode());
+        when(objectMapper.convertValue(any(JsonNode.class), eq(List.class))).thenReturn(childNodeList);
+
+        when(valueOperations.get(startsWith(Constants.COMMENT_KEY))).thenReturn(null); // paginated cache miss too
+
+        List<Comment> comments = createMockComments();
+        Page<Comment> commentPage = new PageImpl<>(comments);
+        List<Object> userList = createMockUserList();
+        Map<String, Object> expectedResult = new HashMap<>();
+
+        when(commentRepository.findByCommentIdIn(eq(childNodeList), any(Pageable.class))).thenReturn(commentPage);
+        when(fetchUser.fetchDataForKeys(anyList())).thenReturn(userList).thenReturn(null);
+        when(objectMapper.convertValue(any(CommentsResoponseDTO.class), eq(Map.class))).thenReturn(expectedResult);
+
+        ApiResponse response = commentService.paginatedCommentV3(searchCriteria);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+    }
+
+    @Test
+    void testPaginatedCommentV3_UsesDefaultLimitAndOffset_WhenNotProvided() throws Exception {
+        // searchCriteria intentionally leaves limit/offset null so the ternary fallback to
+        // defaultLimit/defaultOffset is exercised (as opposed to every other test in this class,
+        // which sets them explicitly).
+        ReflectionTestUtils.setField(commentService, "defaultLimit", 10);
+        ReflectionTestUtils.setField(commentService, "defaultOffset", 0);
+
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setCommentTreeId("tree123");
+        searchCriteria.setOverrideCache(false);
+
+        Map<String, Object> commentResultMap = createMockCommentTreeData();
+        List<String> childNodeList = Arrays.asList("comment1", "comment2");
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put("comments", new ArrayList<>());
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(Constants.COMMENT_TREE_REDIS_KEY + "tree123"))
+                .thenReturn("{\"firstLevelNodes\":[\"comment1\",\"comment2\"]}");
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(commentResultMap);
+        when(objectMapper.valueToTree(any())).thenReturn(createMockJsonNode());
+        when(objectMapper.convertValue(any(JsonNode.class), eq(List.class)))
+                .thenReturn(childNodeList);
+        when(valueOperations.get(startsWith(Constants.COMMENT_KEY)))
+                .thenReturn("{\"result\":\"cached\"}");
+        when(objectMapper.readValue(eq("{\"result\":\"cached\"}"), any(TypeReference.class)))
+                .thenReturn(resultMap);
+
+        ApiResponse response = commentService.paginatedCommentV3(searchCriteria);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(resultMap, response.getResult());
     }
 
     private Map<String, Object> createMockCommentTreeData() {

@@ -3,7 +3,6 @@ package com.tarento.commenthub.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.tarento.commenthub.constant.Constants;
 import com.tarento.commenthub.dto.CommentTreeIdentifierDTO;
-import com.tarento.commenthub.dto.MultipleWorkflowsCommentResponseDTO;
 import com.tarento.commenthub.dto.CommentsResoponseDTO;
 import com.tarento.commenthub.dto.ResponseDTO;
 import com.tarento.commenthub.dto.SearchCriteria;
@@ -15,7 +14,6 @@ import com.tarento.commenthub.transactional.utils.ApiResponse;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,11 +32,14 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class CommentController {
 
-  @Autowired
-  CommentTreeService commentTreeService;
+  private final CommentTreeService commentTreeService;
 
-  @Autowired
-  private CommentService commentService;
+  private final CommentService commentService;
+
+  public CommentController(CommentTreeService commentTreeService, CommentService commentService) {
+    this.commentTreeService = commentTreeService;
+    this.commentService = commentService;
+  }
 
   @PostMapping("/v1/addFirst")
   public ResponseDTO addFirstComment(@RequestBody JsonNode payload) {
@@ -106,20 +107,20 @@ public class CommentController {
   }
 
   @PostMapping("/v1/like")
-  public ResponseEntity likeComment(@RequestBody Map<String, Object> likePayload) {
+  public ResponseEntity<ApiResponse> likeComment(@RequestBody Map<String, Object> likePayload) {
     ApiResponse response = commentService.likeComment(likePayload);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
   @GetMapping("/v1/like/read")
-  public ResponseEntity getCommentLike(@RequestParam String commentId,
+  public ResponseEntity<ApiResponse> getCommentLike(@RequestParam String commentId,
       @RequestParam String userId) {
     ApiResponse response = commentService.getCommentLike(commentId, userId);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
   @PostMapping("/search")
-  public ResponseEntity<?> search(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<ApiResponse> search(@RequestBody SearchCriteria searchCriteria) {
     ApiResponse response = commentService.paginatedComment(searchCriteria, "v1");
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
       return new ResponseEntity<>(response, HttpStatus.OK);
@@ -127,13 +128,13 @@ public class CommentController {
     return new ResponseEntity<>(response, response.getResponseCode());
   }
   @PostMapping("/list")
-  public ResponseEntity<?> search(@RequestBody List<String> commentIds) {
+  public ResponseEntity<ApiResponse> search(@RequestBody List<String> commentIds) {
     ApiResponse response = commentService.listOfComments(commentIds);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
   @PostMapping("/report")
-  public ResponseEntity<?> report(@RequestBody Map<String, Object> request,
+  public ResponseEntity<ApiResponse> report(@RequestBody Map<String, Object> request,
       @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
     ApiResponse response = commentService.reportComment(request, token);
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
@@ -143,7 +144,7 @@ public class CommentController {
   }
 
   @PostMapping("/delete/reported")
-  public ResponseEntity<?> delete(@RequestBody Map<String, Object> request,
+  public ResponseEntity<ApiResponse> delete(@RequestBody Map<String, Object> request,
       @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
     ApiResponse response = commentService.deleteReportedComments(request, token);
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
@@ -153,13 +154,13 @@ public class CommentController {
   }
 
   @GetMapping("/v1/likedComments")
-  public ResponseEntity getCommentsLikedByUser(@RequestParam String courseId, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+  public ResponseEntity<ApiResponse> getCommentsLikedByUser(@RequestParam String courseId, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
     ApiResponse response = commentService.getCommentsLikedByUser(courseId, token);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
 
   @PostMapping("/v2/search")
-  public ResponseEntity<?> searchV2(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<ApiResponse> searchV2(@RequestBody SearchCriteria searchCriteria) {
     ApiResponse response = commentService.paginatedComment(searchCriteria, "v2");
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
       return new ResponseEntity<>(response, HttpStatus.OK);
@@ -168,7 +169,7 @@ public class CommentController {
   }
 
   @PostMapping("/v3/search")
-  public ResponseEntity<?> searchV3(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<ApiResponse> searchV3(@RequestBody SearchCriteria searchCriteria) {
     ApiResponse response = commentService.paginatedCommentV3(searchCriteria);
     if (response.getResponseCode().equals(HttpStatus.NOT_FOUND) && response.getResult().isEmpty()) {
       return new ResponseEntity<>(response, HttpStatus.OK);

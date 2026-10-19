@@ -4,6 +4,9 @@ import java.util.List;
 
 public class CommentsUtility {
 
+  private CommentsUtility() {
+  }
+
   public static boolean containsNull(List<?> list) {
     if (list == null) {
       return true;

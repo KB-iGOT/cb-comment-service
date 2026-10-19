@@ -1,7 +1,6 @@
 package com.tarento.commenthub.entity;
 
 import com.tarento.commenthub.dto.UserCourseCommentsId;
-import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;

@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class SearchCriteriaTest {
+class SearchCriteriaTest {
     @Test
     void testNoArgsConstructorAndDefaultValues() {
         SearchCriteria criteria = new SearchCriteria();

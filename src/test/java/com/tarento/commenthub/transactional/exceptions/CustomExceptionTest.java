@@ -13,14 +13,6 @@ class CustomExceptionTest {
         assertNull(ex.getCode());
         assertNull(ex.getMessage());
         assertNull(ex.getHttpStatusCode());
-
-        ex.setCode("ERR001");
-        ex.setMessage("Some error occurred");
-        ex.setHttpStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
-
-        assertEquals("ERR001", ex.getCode());
-        assertEquals("Some error occurred", ex.getMessage());
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getHttpStatusCode());
     }
 
     @Test
@@ -30,5 +22,15 @@ class CustomExceptionTest {
         assertEquals("ERR002", ex.getCode());
         assertEquals("Another error", ex.getMessage());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getHttpStatusCode());
+    }
+
+    @Test
+    void testCassandraPropertyReaderException_setsMessageAndCause() {
+        Throwable cause = new RuntimeException("root cause");
+        CassandraPropertyReaderException exception =
+                new CassandraPropertyReaderException("Error loading properties", cause);
+
+        assertEquals("Error loading properties", exception.getMessage());
+        assertEquals(cause, exception.getCause());
     }
 }

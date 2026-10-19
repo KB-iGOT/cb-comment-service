@@ -23,4 +23,20 @@ class CbServerPropertiesTest {
         assertEquals("title,description,status", cbServerProperties.getDefaultContentProperties());
         assertEquals("http://localhost:8081/notify", cbServerProperties.getNotificationApiUrl());
     }
+
+    @Test
+    void testSetters() {
+        CbServerProperties props = new CbServerProperties();
+        props.setContentHost("http://example.com");
+        props.setContentReadEndPoint("/read");
+        props.setContentReadEndPointFields("field1,field2");
+        props.setDefaultContentProperties("prop1,prop2");
+        props.setNotificationApiUrl("http://notify.example.com");
+
+        assertEquals("http://example.com", props.getContentHost());
+        assertEquals("/read", props.getContentReadEndPoint());
+        assertEquals("field1,field2", props.getContentReadEndPointFields());
+        assertEquals("prop1,prop2", props.getDefaultContentProperties());
+        assertEquals("http://notify.example.com", props.getNotificationApiUrl());
+    }
 }

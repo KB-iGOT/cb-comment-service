@@ -27,6 +27,27 @@ class CommentsResoponseDTOTest {
     }
 
     @Test
+    void testLombokAllArgsConstructor() {
+        CommentTree commentTree = new CommentTree();
+        Comment comment = new Comment();
+        List<Comment> comments = Collections.singletonList(comment);
+        List<Object> users = Collections.singletonList("user1");
+        List<Object> taggedUsers = Collections.singletonList("tagged1");
+        Map<String, Object> courseDetails = Map.of("course", "Java");
+
+        CommentsResoponseDTO dto = new CommentsResoponseDTO(commentTree, comments, users, 5,
+                taggedUsers, courseDetails, "tree456");
+
+        assertEquals(commentTree, dto.getCommentTree());
+        assertEquals(comments, dto.getComments());
+        assertEquals(users, dto.getUsers());
+        assertEquals(5, dto.getCommentCount());
+        assertEquals(taggedUsers, dto.getTaggedUsers());
+        assertEquals(courseDetails, dto.getCourseDetails());
+        assertEquals("tree456", dto.getCommentTreeId());
+    }
+
+    @Test
     void testTwoArgConstructor() {
         Comment comment = new Comment();
         List<Comment> comments = Arrays.asList(comment);

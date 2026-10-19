@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -26,20 +25,24 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class ContentServiceImpl implements ContentService {
 
-  @Autowired
-  private DataCacheManager dataCacheMgr;
+  private final DataCacheManager dataCacheMgr;
 
-  @Autowired
-  private CbServerProperties serverConfig;
+  private final CbServerProperties serverConfig;
 
-  @Autowired
-  private RestTemplate restTemplate;
+  private final RestTemplate restTemplate;
 
-  @Autowired
-  private RedisCacheMngr redisCacheMgr;
+  private final RedisCacheMngr redisCacheMgr;
 
-  @Autowired
-  private ObjectMapper mapper;
+  private final ObjectMapper mapper;
+
+  public ContentServiceImpl(DataCacheManager dataCacheMgr, CbServerProperties serverConfig,
+      RestTemplate restTemplate, RedisCacheMngr redisCacheMgr, ObjectMapper objectMapper) {
+    this.dataCacheMgr = dataCacheMgr;
+    this.serverConfig = serverConfig;
+    this.restTemplate = restTemplate;
+    this.redisCacheMgr = redisCacheMgr;
+    this.mapper = objectMapper;
+  }
 
   @Override
   public Map<String, Object> readContentFromCache(String contentId, List<String> fields) {
@@ -47,43 +50,46 @@ public class ContentServiceImpl implements ContentService {
     if (CollectionUtils.isEmpty(fields)) {
       fields = Arrays.asList(serverConfig.getDefaultContentProperties().split(",", -1));
     }
-    Map<String, Object> responseData = null;
-
-    responseData = dataCacheMgr.getContentFromCache(contentId);
+    Map<String, Object> responseData = dataCacheMgr.getContentFromCache(contentId);
 
     if (MapUtils.isEmpty(responseData) || responseData.size() < fields.size()) {
       // DataCacheMgr doesn't have data OR contains less content fields.
       // Let's read again
-      String contentString = redisCacheMgr.getContentFromCache(contentId);
-      if (StringUtils.isBlank(contentString)) {
-        // Tried reading from Redis - but redis didn't have data for some reason.
-        // Or connection failed ??
-        responseData = readContent(contentId, fields);
-      } else {
-        try {
-          responseData = new HashMap<String, Object>();
-          Map<String, Object> contentData = mapper.readValue(contentString,
-              new TypeReference<Map<String, Object>>() {
-              });
-          if (MapUtils.isNotEmpty(contentData)) {
-            for (String field : fields) {
-              if (contentData.containsKey(field)) {
-                responseData.put(field, contentData.get(field));
-              }
-            }
-            dataCacheMgr.putContentInCache(contentId, responseData);
-          }
-        } catch (Exception e) {
-          log.error("Failed to parse content info from redis. Exception: " + e.getMessage(), e);
-          responseData = readContent(contentId);
-        }
-      }
-    } else {
-      // We are going to send the data read from which might have more fields.
-      // This is fine for now.
+      responseData = readFromRedisOrOrigin(contentId, fields);
     }
     log.info("ContentServiceImpl::readContentFromCache");
     return responseData;
+  }
+
+  private Map<String, Object> readFromRedisOrOrigin(String contentId, List<String> fields) {
+    String contentString = redisCacheMgr.getContentFromCache(contentId);
+    if (StringUtils.isBlank(contentString)) {
+      // Tried reading from Redis - but redis didn't have data for some reason.
+      // Or connection failed ??
+      return readContent(contentId, fields);
+    }
+    return parseAndCacheContent(contentId, fields, contentString);
+  }
+
+  private Map<String, Object> parseAndCacheContent(String contentId, List<String> fields, String contentString) {
+    try {
+      Map<String, Object> responseData = new HashMap<>();
+      Map<String, Object> contentData = mapper.readValue(contentString,
+          new TypeReference<Map<String, Object>>() {
+          });
+      if (MapUtils.isNotEmpty(contentData)) {
+        for (String field : fields) {
+          if (contentData.containsKey(field)) {
+            responseData.put(field, contentData.get(field));
+          }
+        }
+        dataCacheMgr.putContentInCache(contentId, responseData);
+      }
+      return responseData;
+    } catch (Exception e) {
+      log.error("Failed to parse content info from redis. Exception: " + e.getMessage(), e);
+      return readContent(contentId);
+    }
   }
 
   @Override
@@ -104,13 +110,13 @@ public class ContentServiceImpl implements ContentService {
       log.info("ContentServiceImpl::readContent:read the content");
       return (Map<String, Object>) contentResult.get(Constants.CONTENT);
     }
-    return null;
+    return Collections.emptyMap();
   }
 
   public Object fetchResult(String uri) {
     log.info("ContentServiceImpl::fetchResult:inside");
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    ObjectMapper localMapper = new ObjectMapper();
+    localMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
     Object response = null;
     try {
       if (log.isDebugEnabled()) {
@@ -122,21 +128,32 @@ public class ContentServiceImpl implements ContentService {
       }
       response = restTemplate.getForObject(uri, Map.class);
     } catch (HttpClientErrorException e) {
-      try {
-        response = (new ObjectMapper()).readValue(e.getResponseBodyAsString(),
-            new TypeReference<HashMap<String, Object>>() {
-            });
-      } catch (Exception e1) {
-      }
+      response = parseErrorResponseBody(e);
       log.error("Error received: " + e.getResponseBodyAsString(), e);
     } catch (Exception e) {
       log.error(e.toString());
-      try {
-        log.warn("Error Response: " + mapper.writeValueAsString(response));
-      } catch (Exception e1) {
-      }
+      logErrorResponse(localMapper, response);
     }
     return response;
+  }
+
+  private Object parseErrorResponseBody(HttpClientErrorException e) {
+    try {
+      return (new ObjectMapper()).readValue(e.getResponseBodyAsString(),
+          new TypeReference<HashMap<String, Object>>() {
+          });
+    } catch (Exception e1) {
+      log.error("Failed to parse error response body: {}", e1.getMessage(), e1);
+      return null;
+    }
+  }
+
+  private void logErrorResponse(ObjectMapper localMapper, Object response) {
+    try {
+      log.warn("Error Response: " + localMapper.writeValueAsString(response));
+    } catch (Exception e1) {
+      log.error("Failed to serialize error response for logging: {}", e1.getMessage(), e1);
+    }
   }
 
   @Override

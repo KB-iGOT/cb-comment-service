@@ -1,4 +1,4 @@
-package com.igot.cb.transactional.exceptions;
+package com.tarento.commenthub.transactional.exceptions;
 
 
 /**

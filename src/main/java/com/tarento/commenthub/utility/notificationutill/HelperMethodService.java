@@ -8,17 +8,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tarento.commenthub.authentication.util.FetchUserDetails;
 import com.tarento.commenthub.constant.Constants;
 import com.tarento.commenthub.service.ContentService;
 import com.tarento.commenthub.transactional.cassandrautils.CassandraOperation;
 import com.tarento.commenthub.utility.RedisCacheMngr;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.UncheckedIOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,21 +27,24 @@ import static com.tarento.commenthub.constant.Constants.*;
 @Service
 @Slf4j
 public class HelperMethodService {
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private CassandraOperation cassandraOperation;
-    @Autowired
-    private RedisCacheMngr cacheService;
-    @Autowired
-    private ContentService contentService;
-    @Autowired
-    private NotificationTriggerService notificationTriggerService;
+    private final ObjectMapper objectMapper;
+    private final CassandraOperation cassandraOperation;
+    private final RedisCacheMngr cacheService;
+    private final ContentService contentService;
+    private final NotificationTriggerService notificationTriggerService;
+
+    public HelperMethodService(ObjectMapper objectMapper, CassandraOperation cassandraOperation,
+        RedisCacheMngr cacheService, ContentService contentService,
+        NotificationTriggerService notificationTriggerService) {
+      this.objectMapper = objectMapper;
+      this.cassandraOperation = cassandraOperation;
+      this.cacheService = cacheService;
+      this.contentService = contentService;
+      this.notificationTriggerService = notificationTriggerService;
+    }
 
     public String fetchDataForKeys(String keys) {
-
-        String values = cacheService.getContentFromCache(keys);
-        return values;
+        return cacheService.getContentFromCache(keys);
     }
 
     public List<Object> fetchUserFromPrimary(List<String> userIds) {
@@ -60,50 +63,28 @@ public class HelperMethodService {
             return Collections.emptyList();
         }
         userList = userInfoList.stream()
-                .map(userInfo -> {
-                    Map<String, Object> userMap = new HashMap<>();
-
-                    // Extract user ID and user name
-                    String userId = (String) userInfo.get(Constants.ID);
-                    String userName = (String) userInfo.get(Constants.FIRST_NAME);
-
-                    userMap.put(Constants.USER_ID_KEY, userId);
-                    userMap.put(Constants.FIRST_NAME_KEY, userName);
-
-                    // Process profile details if present
-                    String profileDetails = (String) userInfo.get(Constants.PROFILE_DETAILS);
-                    if (StringUtils.isNotBlank(profileDetails)) {
-                        try {
-                            // Convert JSON profile details to a Map
-                            Map<String, Object> profileDetailsMap = objectMapper.readValue(profileDetails,
-                                    new TypeReference<HashMap<String, Object>>() {
-                                    });
-
-                            // Check for profile image and add to userMap if available
-                            if (MapUtils.isNotEmpty(profileDetailsMap)) {
-                                if (profileDetailsMap.containsKey(Constants.PROFILE_IMG) && StringUtils.isNotBlank((String) profileDetailsMap.get(Constants.PROFILE_IMG))) {
-                                    userMap.put(Constants.PROFILE_IMG_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
-                                }
-                                if (profileDetailsMap.containsKey(Constants.DESIGNATION_KEY) && StringUtils.isNotEmpty((String) profileDetailsMap.get(Constants.DESIGNATION_KEY))) {
-
-                                    userMap.put(Constants.DESIGNATION_KEY, (String) profileDetailsMap.get(Constants.PROFILE_IMG));
-                                }
-                                if (profileDetailsMap.containsKey(Constants.EMPLOYMENT_DETAILS) && MapUtils.isNotEmpty(
-                                        (Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)) && ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).containsKey(Constants.DEPARTMENT_KEY) && StringUtils.isNotBlank(
-                                        (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY))) {
-                                    userMap.put(Constants.DEPARTMENT, (String) ((Map<?, ?>) profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS)).get(Constants.DEPARTMENT_KEY));
-
-                                }
-                            }
-                        } catch (JsonProcessingException e) {
-                            log.error("Error occurred while converting json object to json string", e);
-                        }
-                    }
-
-                    return userMap;
-                })
+                .map(this::toUserMap)
                 .collect(Collectors.toList());
         return userList;
+    }
+
+    private Map<String, Object> toUserMap(Map<String, Object> userInfo) {
+        return FetchUserDetails.buildUserMap(userInfo, this::applyProfileDetails);
+    }
+
+    private void applyProfileDetails(Map<String, Object> userMap, String profileDetails) {
+        Map<String, Object> profileDetailsMap;
+        try {
+            // Convert JSON profile details to a Map
+            profileDetailsMap = objectMapper.readValue(profileDetails,
+                    new TypeReference<HashMap<String, Object>>() {
+                    });
+        } catch (JsonProcessingException e) {
+            log.error("Error occurred while converting json object to json string", e);
+            return;
+        }
+
+        FetchUserDetails.enrichProfileFields(userMap, profileDetailsMap);
     }
 
     public String fetchUserFirstName(String userId) {
@@ -114,12 +95,12 @@ public class HelperMethodService {
                 resultMap = objectMapper.readValue(redisResults, new TypeReference<Map<String, Object>>() {
                 });
             } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+                throw new UncheckedIOException(e);
             }
             Object nameObj = resultMap.get(Constants.FIRST_NAME_KEY);
 
-            if (nameObj instanceof String && StringUtils.isNotBlank((String) nameObj)) {
-                return (String) nameObj;
+            if (nameObj instanceof String string && StringUtils.isNotBlank(string)) {
+                return string;
             }
         }
 

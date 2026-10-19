@@ -6,7 +6,6 @@ import com.tarento.commenthub.constant.Constants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -39,11 +38,11 @@ class CacheServiceTest {
     @Mock
     private ValueOperations<String, String> dataValueOperations;
 
-    @InjectMocks
     private CacheService cacheService;
 
     @BeforeEach
     void setUp() {
+        cacheService = new CacheService(redisTemplate, redisDataTemplate, objectMapper);
         ReflectionTestUtils.setField(cacheService, "cacheTtl", 3600L);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(redisDataTemplate.opsForValue()).thenReturn(dataValueOperations);

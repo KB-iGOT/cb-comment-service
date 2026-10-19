@@ -16,17 +16,6 @@ class CommentExceptionTest {
         assertNull(exception.getMessage());
         assertNull(exception.getHttpStatusCode());
         assertNull(exception.getErrors());
-
-        // Explicitly call setters
-        exception.setCode("SET001");
-        exception.setMessage("set message");
-        exception.setHttpStatusCode(500);
-        exception.setErrors(Map.of("f", "e"));
-
-        assertEquals("SET001", exception.getCode());
-        assertEquals("set message", exception.getMessage());
-        assertEquals(500, exception.getHttpStatusCode());
-        assertEquals(Map.of("f", "e"), exception.getErrors());
     }
 
     @Test

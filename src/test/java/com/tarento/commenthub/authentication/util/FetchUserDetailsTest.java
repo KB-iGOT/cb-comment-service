@@ -101,6 +101,28 @@ class FetchUserDetailsTest {
     }
 
     @Test
+    void fetchUserFromprimary_shouldAddProfileImgAndDepartment_WhenKeysMatch() {
+        String profileJson = "{\"profileImageUrl\":\"img.jpg\",\"employmentDetails\":{\"departmentName\":\"HR\"}}";
+
+        Map<String, Object> dbRecord = new HashMap<>();
+        dbRecord.put(Constants.ID, "user123");
+        dbRecord.put(Constants.FIRST_NAME, "Alice");
+        dbRecord.put(Constants.PROFILE_DETAILS, profileJson);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                eq(Constants.KEYSPACE_SUNBIRD), eq(Constants.TABLE_USER), anyMap(), anyList(), isNull()))
+                .thenReturn(Collections.singletonList(dbRecord));
+
+        List<Object> users = fetchUserDetails.fetchUserFromprimary(List.of("user123"));
+
+        assertEquals(1, users.size());
+        Map<String, Object> userMap = (Map<String, Object>) users.get(0);
+
+        assertEquals("img.jpg", userMap.get(Constants.PROFILE_IMG_KEY));
+        assertEquals("HR", userMap.get(Constants.DEPARTMENT));
+    }
+
+    @Test
     void fetchUserFromprimary_shouldHandleEmptyProfileDetails() {
         Map<String, Object> dbRecord = new HashMap<>();
         dbRecord.put(Constants.ID, "user123");

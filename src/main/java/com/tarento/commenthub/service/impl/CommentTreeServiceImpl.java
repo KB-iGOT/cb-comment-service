@@ -14,6 +14,7 @@ import com.tarento.commenthub.exception.CommentException;
 import com.tarento.commenthub.repository.CommentTreeRepository;
 import com.tarento.commenthub.service.CommentTreeService;
 import com.tarento.commenthub.utility.Status;
+import java.io.UncheckedIOException;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -34,17 +34,21 @@ public class CommentTreeServiceImpl implements CommentTreeService {
   @Value("${jwt.secret.key}")
   private String jwtSecretKey;
 
-  @Autowired
-  private ObjectMapper objectMapper;
+  private final ObjectMapper objectMapper;
 
-  @Autowired
-  private CommentTreeRepository commentTreeRepository;
+  private final CommentTreeRepository commentTreeRepository;
 
-  @Autowired
-  private RedisTemplate redisTemplate;
+  private final RedisTemplate<String, String> redisTemplate;
 
   @Value("${redis.ttl.comment.tree}")
   private long redisTtl;
+
+  public CommentTreeServiceImpl(ObjectMapper objectMapper,
+      CommentTreeRepository commentTreeRepository, RedisTemplate<String, String> redisTemplate) {
+    this.objectMapper = objectMapper;
+    this.commentTreeRepository = commentTreeRepository;
+    this.redisTemplate = redisTemplate;
+  }
 
   public CommentTree createCommentTree(JsonNode payload) {
     log.info("CommentTreeService::createCommentTree:Creating comment tree with payload: {}", payload);
@@ -80,97 +84,104 @@ public class CommentTreeServiceImpl implements CommentTreeService {
       resultMap = objectMapper.convertValue(
           commentTree.getCommentTreeData(), Map.class);
       commentTreeRepository.save(commentTree);
-      try {
-        // Serialize resultMap to JSON
-        String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-        // Store the serialized JSON in Redis
-        redisTemplate.opsForValue()
-            .set(commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
-      } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
-      }
+      cacheCommentTreeInRedis(commentTreeId, resultMap);
       return commentTree;
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error("Error while creating comment tree", e);
       throw new CommentException(Constants.ERROR, e.getMessage(), HttpStatus.OK.value());
+    }
+  }
+
+  private void cacheCommentTreeInRedis(String redisKey, Map<String, Object> resultMap) {
+    try {
+      // Serialize resultMap to JSON
+      String resultMapJson = objectMapper.writeValueAsString(resultMap);
+
+      // Store the serialized JSON in Redis
+      redisTemplate.opsForValue()
+          .set(redisKey, resultMapJson, redisTtl, TimeUnit.SECONDS);
+    } catch (JsonProcessingException e) {
+      log.error("Error serializing resultMap to JSON for Redis storage", e);
+      throw new UncheckedIOException("Failed to serialize resultMap", e);
     }
   }
 
   public CommentTree updateCommentTree(JsonNode payload) {
     log.info("CommentTreeService:updateCommentTree:updating commentTree : {}", payload);
-    CommentTree commentTree;
     String commentTreeId = payload.get(Constants.COMMENT_TREE_ID).asText();
     Optional<CommentTree> optCommentTree = commentTreeRepository.findById(commentTreeId);
-    if (optCommentTree.isPresent()) {
-      commentTree = optCommentTree.get();
-      JsonNode commentTreeJson = commentTree.getCommentTreeData();
-
-      try {
-        // Create an object node for a comment entry
-        ObjectNode commentEntryNode = objectMapper.createObjectNode();
-        commentEntryNode.set(Constants.COMMENT_ID, payload.get(Constants.COMMENT_ID));
-
-        if (payload.get(Constants.HIERARCHY_PATH) != null && !payload.get(
-            Constants.HIERARCHY_PATH).isEmpty()) {
-          String[] hierarchyPath = objectMapper.treeToValue(
-              payload.get(Constants.HIERARCHY_PATH), String[].class);
-          // Find the target position based on the hierarchy path
-          JsonNode targetJsonNode = findTargetNode(commentTreeJson.get(Constants.COMMENTS),
-              hierarchyPath, 0);
-          if (targetJsonNode == null) {
-            throw new CommentException(Constants.ERROR, Constants.WRONG_HIERARCHY_PATH_ERROR);
-          }
-          if (targetJsonNode.isArray()) {
-            ArrayNode targetArrayNode = (ArrayNode) targetJsonNode;
-            targetArrayNode.add(commentEntryNode);
-          } else {
-            if (targetJsonNode.get(Constants.CHILDREN) != null) {
-              ArrayNode childrenArrayNode = (ArrayNode) targetJsonNode.get(Constants.CHILDREN);
-              childrenArrayNode.add(commentEntryNode);
-            } else {
-              ObjectNode targetObjectNode = (ObjectNode) targetJsonNode;
-              targetObjectNode.putArray(Constants.CHILDREN).add(commentEntryNode);
-            }
-          }
-        } else {
-          ArrayNode targetArrayNode = (ArrayNode) commentTreeJson.get(Constants.COMMENTS);
-          targetArrayNode.add(commentEntryNode);
-          // Retrieve the existing firstLevelNodes array
-          ArrayNode firstLevelNodesArray = (ArrayNode) commentTreeJson.get(
-              Constants.FIRST_LEVEL_NODES);
-          // Add the new comment ID to the existing firstLevelNodes array
-          firstLevelNodesArray.add(payload.get(Constants.COMMENT_ID));
-        }
-        // Retrieve the existing childNodes array
-        ArrayNode childNodesArray = (ArrayNode) commentTreeJson.get(Constants.CHILD_NODES);
-        //Add the new comment ID to the existing childNodes array
-        childNodesArray.add(payload.get(Constants.COMMENT_ID));
-
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        commentTree.setLastUpdatedDate(currentTime);
-        CommentTree persistedCommentTree = commentTreeRepository.save(commentTree);
-        Map<String, Object> resultMap = objectMapper.convertValue(
-            persistedCommentTree.getCommentTreeData(), Map.class);
-        try {
-          // Serialize resultMap to JSON
-          String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-          // Store the serialized JSON in Redis
-          redisTemplate.opsForValue()
-              .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeId, resultMapJson, redisTtl, TimeUnit.SECONDS);
-        } catch (JsonProcessingException e) {
-          log.error("Error serializing resultMap to JSON for Redis storage", e);
-          throw new RuntimeException("Failed to serialize resultMap", e);
-        }
-        return persistedCommentTree;
-      } catch (Exception e) {
-        e.printStackTrace();
-        throw new CommentException(Constants.ERROR, e.getMessage(), HttpStatus.OK.value());
-      }
+    if (!optCommentTree.isPresent()) {
+      return null;
     }
-    return null;
+
+    CommentTree commentTree = optCommentTree.get();
+    JsonNode commentTreeJson = commentTree.getCommentTreeData();
+
+    try {
+      // Create an object node for a comment entry
+      ObjectNode commentEntryNode = objectMapper.createObjectNode();
+      commentEntryNode.set(Constants.COMMENT_ID, payload.get(Constants.COMMENT_ID));
+
+      insertCommentIntoTree(payload, commentTreeJson, commentEntryNode);
+
+      Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+      commentTree.setLastUpdatedDate(currentTime);
+      CommentTree persistedCommentTree = commentTreeRepository.save(commentTree);
+      Map<String, Object> resultMap = objectMapper.convertValue(
+          persistedCommentTree.getCommentTreeData(), Map.class);
+      cacheCommentTreeInRedis(Constants.COMMENT_TREE_REDIS_KEY + commentTreeId, resultMap);
+      return persistedCommentTree;
+    } catch (Exception e) {
+      log.error("Error while updating comment tree", e);
+      throw new CommentException(Constants.ERROR, e.getMessage(), HttpStatus.OK.value());
+    }
+  }
+
+  private void insertCommentIntoTree(JsonNode payload, JsonNode commentTreeJson,
+      ObjectNode commentEntryNode) throws JsonProcessingException {
+    if (payload.get(Constants.HIERARCHY_PATH) != null && !payload.get(
+        Constants.HIERARCHY_PATH).isEmpty()) {
+      insertAtHierarchyPath(payload, commentTreeJson, commentEntryNode);
+    } else {
+      insertAtTopLevel(payload, commentTreeJson, commentEntryNode);
+    }
+    // Retrieve the existing childNodes array
+    ArrayNode childNodesArray = (ArrayNode) commentTreeJson.get(Constants.CHILD_NODES);
+    //Add the new comment ID to the existing childNodes array
+    childNodesArray.add(payload.get(Constants.COMMENT_ID));
+  }
+
+  private void insertAtHierarchyPath(JsonNode payload, JsonNode commentTreeJson,
+      ObjectNode commentEntryNode) throws JsonProcessingException {
+    String[] hierarchyPath = objectMapper.treeToValue(
+        payload.get(Constants.HIERARCHY_PATH), String[].class);
+    // Find the target position based on the hierarchy path
+    JsonNode targetJsonNode = findTargetNode(commentTreeJson.get(Constants.COMMENTS),
+        hierarchyPath, 0);
+    if (targetJsonNode == null) {
+      throw new CommentException(Constants.ERROR, Constants.WRONG_HIERARCHY_PATH_ERROR);
+    }
+    if (targetJsonNode.isArray()) {
+      ArrayNode targetArrayNode = (ArrayNode) targetJsonNode;
+      targetArrayNode.add(commentEntryNode);
+    } else if (targetJsonNode.get(Constants.CHILDREN) != null) {
+      ArrayNode childrenArrayNode = (ArrayNode) targetJsonNode.get(Constants.CHILDREN);
+      childrenArrayNode.add(commentEntryNode);
+    } else {
+      ObjectNode targetObjectNode = (ObjectNode) targetJsonNode;
+      targetObjectNode.putArray(Constants.CHILDREN).add(commentEntryNode);
+    }
+  }
+
+  private void insertAtTopLevel(JsonNode payload, JsonNode commentTreeJson,
+      ObjectNode commentEntryNode) {
+    ArrayNode targetArrayNode = (ArrayNode) commentTreeJson.get(Constants.COMMENTS);
+    targetArrayNode.add(commentEntryNode);
+    // Retrieve the existing firstLevelNodes array
+    ArrayNode firstLevelNodesArray = (ArrayNode) commentTreeJson.get(
+        Constants.FIRST_LEVEL_NODES);
+    // Add the new comment ID to the existing firstLevelNodes array
+    firstLevelNodesArray.add(payload.get(Constants.COMMENT_ID));
   }
 
   public static JsonNode findTargetNode(JsonNode currentNode, String[] hierarchyPath, int index) {
@@ -221,91 +232,103 @@ public class CommentTreeServiceImpl implements CommentTreeService {
         commentId, commentTreeIdentifierDTO);
     Optional<CommentTree> optionalCommentTree = commentTreeRepository.findById(
         generateJwtTokenKey(commentTreeIdentifierDTO));
-    if (optionalCommentTree.isPresent()) {
-      CommentTree commentTreeToBeUpdated = optionalCommentTree.get();
-      JsonNode jsonNode = commentTreeToBeUpdated.getCommentTreeData();
+    if (!optionalCommentTree.isPresent()) {
+      return;
+    }
 
-      boolean commentIdFound = false;
+    CommentTree commentTreeToBeUpdated = optionalCommentTree.get();
+    JsonNode jsonNode = commentTreeToBeUpdated.getCommentTreeData();
 
-      // To remove commentId from childNodes
-      ArrayNode childNodes = (ArrayNode) jsonNode.get(Constants.CHILD_NODES);
-      for (int i = 0; i < childNodes.size(); i++) {
-        if (commentId.equals(childNodes.get(i).asText())) {
-          commentIdFound = true;
-          childNodes.remove(i);
-          break; // Exit the loop once the ID is found and removed
+    removeFromChildNodes(commentId, jsonNode);
+    removeFromFirstLevelNodes(commentId, jsonNode);
+    if (!removeFromComments(commentId, parentId, jsonNode)) {
+      return;
+    }
+
+    Map<String, Object> resultMap = objectMapper.convertValue(
+        commentTreeToBeUpdated.getCommentTreeData(), Map.class);
+    commentTreeRepository.save(commentTreeToBeUpdated);
+    cacheCommentTreeInRedis(
+        Constants.COMMENT_TREE_REDIS_KEY + commentTreeToBeUpdated.getCommentTreeId(), resultMap);
+    log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
+        commentId, commentTreeToBeUpdated.getCommentTreeId());
+  }
+
+  private void removeFromChildNodes(String commentId, JsonNode jsonNode) {
+    // To remove commentId from childNodes
+    ArrayNode childNodes = (ArrayNode) jsonNode.get(Constants.CHILD_NODES);
+    boolean commentIdFound = false;
+    for (int i = 0; i < childNodes.size(); i++) {
+      if (commentId.equals(childNodes.get(i).asText())) {
+        commentIdFound = true;
+        childNodes.remove(i);
+        break; // Exit the loop once the ID is found and removed
+      }
+    }
+
+    if (!commentIdFound) {
+      throw new CommentException(Constants.ERROR,
+          "Comment, you're trying to delete not found in the specified comment tree."
+              + " Please double-check the 'entityType', 'entityId', and 'workflow' values to locate the correct comment tree.");
+    }
+  }
+
+  private void removeFromFirstLevelNodes(String commentId, JsonNode jsonNode) {
+    // To remove commentId from firstLevelNodes
+    ArrayNode firstLevelNodes = (ArrayNode) jsonNode.get(Constants.FIRST_LEVEL_NODES);
+    for (int i = 0; i < firstLevelNodes.size(); i++) {
+      if (commentId.equals(firstLevelNodes.get(i).asText())) {
+        firstLevelNodes.remove(i);
+        break; // Exit the loop once the ID is found and removed
+      }
+    }
+  }
+
+  private boolean removeFromComments(String commentId, String parentId, JsonNode jsonNode) {
+    ArrayNode comments = (ArrayNode) jsonNode.get(Constants.COMMENTS);
+    if (comments == null) {
+      return false;
+    }
+
+    int matchIndex = -1;
+    boolean matchIsChildOfParent = false;
+    for (int i = 0; i < comments.size() && matchIndex < 0; i++) {
+      JsonNode commentNode = comments.get(i);
+      String currentCommentId = commentNode.get(Constants.COMMENT_ID).asText();
+
+      if (parentId != null && !parentId.isEmpty() && parentId.equals(currentCommentId)) {
+        matchIndex = i;
+        matchIsChildOfParent = true;
+      } else if ((parentId == null || "null".equalsIgnoreCase(parentId) || parentId.isEmpty())
+          && commentId.equalsIgnoreCase(currentCommentId)) {
+        matchIndex = i;
+      }
+    }
+
+    if (matchIndex >= 0) {
+      if (matchIsChildOfParent) {
+        removeChildComment(commentId, comments.get(matchIndex));
+      } else {
+        comments.remove(matchIndex);
+      }
+    }
+    return true;
+  }
+
+  private void removeChildComment(String commentId, JsonNode commentNode) {
+    ArrayNode children = (ArrayNode) commentNode.get(Constants.CHILDREN);
+    if (children == null) {
+      return;
+    }
+    for (int j = 0; j < children.size(); j++) {
+      if (commentId.equalsIgnoreCase(children.get(j).get(Constants.COMMENT_ID).asText())) {
+        children.remove(j);
+        // Remove empty children array
+        if (children.isEmpty() && commentNode instanceof ObjectNode objectNode) {
+          objectNode.remove(Constants.CHILDREN);
         }
+        break;
       }
-
-      if (!commentIdFound) {
-        throw new CommentException(Constants.ERROR,
-            "Comment, you're trying to delete not found in the specified comment tree."
-                + " Please double-check the 'entityType', 'entityId', and 'workflow' values to locate the correct comment tree.");
-      }
-
-      // To remove commentId from firstLevelNodes
-      ArrayNode firstLevelNodes = (ArrayNode) jsonNode.get(Constants.FIRST_LEVEL_NODES);
-      for (int i = 0; i < firstLevelNodes.size(); i++) {
-        if (commentId.equals(firstLevelNodes.get(i).asText())) {
-          firstLevelNodes.remove(i);
-          break; // Exit the loop once the ID is found and removed
-        }
-      }
-
-      ArrayNode comments = (ArrayNode) jsonNode.get(Constants.COMMENTS);
-      if (comments == null) {
-        return;
-      }
-
-      for (int i = 0; i < comments.size(); i++) {
-        JsonNode commentNode = comments.get(i);
-        String currentCommentId = commentNode.get(Constants.COMMENT_ID).asText();
-
-        // Case 1: Remove child comment if parentId matches
-        if (parentId != null && !parentId.isEmpty() && parentId.equals(currentCommentId)) {
-          ArrayNode children = (ArrayNode) commentNode.get(Constants.CHILDREN);
-          if (children != null) {
-            for (int j = 0; j < children.size(); j++) {
-              if (commentId.equalsIgnoreCase(children.get(j).get(Constants.COMMENT_ID).asText())) {
-                children.remove(j);
-                commentIdFound = true;
-
-                // Remove empty children array
-                if (children.isEmpty() && commentNode instanceof ObjectNode) {
-                  ((ObjectNode) commentNode).remove(Constants.CHILDREN);
-                }
-                break;
-              }
-            }
-          }
-          break;
-        }
-
-        // Case 2: Remove top-level comment
-        if ((parentId == null || "null".equalsIgnoreCase(parentId) || parentId.isEmpty()) &&
-            commentId.equalsIgnoreCase(currentCommentId)) {
-          comments.remove(i);
-          commentIdFound = true;
-          break;
-        }
-      }
-
-      Map<String, Object> resultMap = objectMapper.convertValue(
-          commentTreeToBeUpdated.getCommentTreeData(), Map.class);
-      commentTreeRepository.save(commentTreeToBeUpdated);
-      try {
-        // Serialize resultMap to JSON
-        String resultMapJson = objectMapper.writeValueAsString(resultMap);
-
-        // Store the serialized JSON in Redis
-        redisTemplate.opsForValue()
-            .set(Constants.COMMENT_TREE_REDIS_KEY+commentTreeToBeUpdated.getCommentTreeId(), resultMapJson, redisTtl, TimeUnit.SECONDS);
-      } catch (JsonProcessingException e) {
-        log.error("Error serializing resultMap to JSON for Redis storage", e);
-        throw new RuntimeException("Failed to serialize resultMap", e);
-      }
-      log.info("Comment tree updated successfully for deleted comment with ID: {} and commentTreeId: {}",
-          commentId, commentTreeToBeUpdated.getCommentTreeId());
     }
   }
 

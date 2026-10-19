@@ -6,21 +6,23 @@ import com.tarento.commenthub.constant.Constants;
 
 
 import java.util.*;
-import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
 
 /**
  * @author Mahesh RV
  * @author Ruksana
  */
-public final class CassandraUtil {
+@Component
+public class CassandraUtil {
 
-    private CassandraUtil() {
+    private final CassandraPropertyReader propertiesCache;
+
+    public CassandraUtil(CassandraPropertyReader propertiesCache) {
+        this.propertiesCache = propertiesCache;
     }
 
-    private static final CassandraPropertyReader propertiesCache = CassandraPropertyReader.getInstance();
-
-
-    public static String getPreparedStatement(
+    public String getPreparedStatement(
             String keyspaceName, String tableName, Map<String, Object> map) {
         StringBuilder query = new StringBuilder();
         query.append(Constants.INSERT_INTO).append(keyspaceName).append(Constants.DOT).append(tableName).append(Constants.OPEN_BRACE);
@@ -38,7 +40,7 @@ public final class CassandraUtil {
     }
 
 
-    public static List<Map<String, Object>> createResponse(ResultSet results) {
+    public List<Map<String, Object>> createResponse(ResultSet results) {
         List<Map<String, Object>> responseList = new ArrayList<>();
         Map<String, String> columnsMapping = fetchColumnsMapping(results);
         for (Row row : results) {
@@ -49,7 +51,7 @@ public final class CassandraUtil {
         return responseList;
     }
 
-    public static Map<String, Object> createResponse(ResultSet results, String key) {
+    public Map<String, Object> createResponse(ResultSet results, String key) {
         Map<String, Object> responseList = new HashMap<>();
         Map<String, String> columnsMapping = fetchColumnsMapping(results);
         Iterator<Row> rowIterator = results.iterator();
@@ -64,7 +66,7 @@ public final class CassandraUtil {
         return responseList;
     }
 
-    public static Map<String, String> fetchColumnsMapping(ResultSet results) {
+    public Map<String, String> fetchColumnsMapping(ResultSet results) {
         Map<String, String> columnsMapping = new HashMap<>();
         results.getColumnDefinitions().forEach(column -> {
             String property = propertiesCache.readProperty(column.getName().asInternal()).trim();

@@ -3,7 +3,6 @@ package com.tarento.commenthub.dto;
 import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.UUID;
 
 
 @Embeddable
@@ -13,7 +12,9 @@ public class UserCourseCommentsId implements Serializable {
   private String courseId;   // Corresponds to course_id in the table
 
   // Default Constructor
-  public UserCourseCommentsId() {}
+  public UserCourseCommentsId() {
+    // Required by JPA for entity instantiation
+  }
 
   // Constructor with fields
   public UserCourseCommentsId(String userId, String courseId) {

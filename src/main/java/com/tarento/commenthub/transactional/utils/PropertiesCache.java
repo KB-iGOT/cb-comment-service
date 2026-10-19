@@ -3,6 +3,7 @@ package com.tarento.commenthub.transactional.utils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +17,7 @@ import java.util.Properties;
  * It loads properties from specified files and provides methods to access them.
  * Also handles environment variable overrides for properties.
  */
+@Component
 public class PropertiesCache {
     // Logger for logging messages
     private final Logger logger = LogManager.getLogger(getClass());
@@ -30,33 +32,16 @@ public class PropertiesCache {
     // Properties object to store loaded properties
     private final Properties configProp = new Properties();
 
-    /**
-     * Private constructor to prevent instantiation from outside
-     */
-    private PropertiesCache() {
+    public PropertiesCache() {
         // Load properties from each file
         for (String file : fileName) {
             InputStream in = this.getClass().getClassLoader().getResourceAsStream(file);
             try {
                 configProp.load(in);
             } catch (IOException e) {
+                logger.error("Error loading properties from file '{}'", file, e);
             }
         }
-    }
-
-    /**
-     * Method to get singleton instance of PropertiesCache
-     *
-     * @return - returns the instance of PropertiesCache
-     */
-    public static PropertiesCache getInstance() {
-
-        // change the lazy holder implementation to simple singleton implementation ...
-        return PropertiesCacheHolder.propertiesCache;
-    }
-
-    private static final class PropertiesCacheHolder {
-        static final PropertiesCache propertiesCache = new PropertiesCache();
     }
 
     /**

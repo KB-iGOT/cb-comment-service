@@ -16,7 +16,6 @@ import static org.mockito.ArgumentMatchers.eq;
 
 import com.tarento.commenthub.constant.Constants;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.util.ReflectionTestUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -47,14 +46,12 @@ class ContentServiceImplTest {
     private RestTemplate restTemplate;
     @Mock
     private ObjectMapper mapper;
-    @Spy
-    @InjectMocks
     private ContentServiceImpl contentService;
     private static final String CONTENT_ID = "test-content-id";
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(contentService, "restTemplate", restTemplate);
+        contentService = spy(new ContentServiceImpl(dataCacheMgr, serverConfig, restTemplate, redisCacheMgr, mapper));
         lenient().when(dataCacheMgr.getContentFromCache(anyString())).thenReturn(null);
         lenient().when(redisCacheMgr.getContentFromCache(anyString())).thenReturn(null);
     }
@@ -186,7 +183,8 @@ class ContentServiceImplTest {
         response.put(Constants.RESPONSE_CODE, "ERROR");
         when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(response);
         Map<String, Object> actualContent = contentService.readContent(CONTENT_ID, fields);
-        assertNull(actualContent);
+        assertNotNull(actualContent);
+        assertTrue(actualContent.isEmpty());
     }
 
     @Test
@@ -198,7 +196,8 @@ class ContentServiceImplTest {
         when(restTemplate.getForObject(anyString(), eq(Map.class))).thenThrow(new RestClientException("Connection failed"));
         Map<String, Object> actualContent = contentService.readContent(CONTENT_ID, fields);
 
-        assertNull(actualContent);
+        assertNotNull(actualContent);
+        assertTrue(actualContent.isEmpty());
     }
 
     @Test
@@ -230,7 +229,8 @@ class ContentServiceImplTest {
         when(serverConfig.getContentReadEndPointFields()).thenReturn("/fields");
         when(restTemplate.getForObject(anyString(), eq(Map.class))).thenReturn(null);
         Map<String, Object> actualContent = contentService.readContent(CONTENT_ID, fields);
-        assertNull(actualContent);
+        assertNotNull(actualContent);
+        assertTrue(actualContent.isEmpty());
     }
 
     @Test
@@ -243,6 +243,27 @@ class ContentServiceImplTest {
         assertNotNull(actualResponse);
         assertEquals(expectedResponse, actualResponse);
         verify(restTemplate).getForObject(uri, Map.class);
+    }
+
+    @Test
+    void fetchResult_SuccessfulResponse_WithDebugLoggingEnabled_ReturnsResponse() {
+        ch.qos.logback.classic.Logger logger =
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(ContentServiceImpl.class);
+        ch.qos.logback.classic.Level originalLevel = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.DEBUG);
+        try {
+            String uri = "http://test-uri.com";
+            Map<String, Object> expectedResponse = new HashMap<>();
+            expectedResponse.put("key", "value");
+            when(restTemplate.getForObject(uri, Map.class)).thenReturn(expectedResponse);
+
+            Object actualResponse = contentService.fetchResult(uri);
+
+            assertNotNull(actualResponse);
+            assertEquals(expectedResponse, actualResponse);
+        } finally {
+            logger.setLevel(originalLevel);
+        }
     }
 
     @Test
@@ -343,7 +364,8 @@ class ContentServiceImplTest {
         Map<String, Object> actualResponse = contentService.readContent(null);
 
         // Assert
-        assertNull(actualResponse);
+        assertNotNull(actualResponse);
+        assertTrue(actualResponse.isEmpty());
     }
 
     @Test
@@ -352,7 +374,8 @@ class ContentServiceImplTest {
         Map<String, Object> actualResponse = contentService.readContent("");
 
         // Assert
-        assertNull(actualResponse);
+        assertNotNull(actualResponse);
+        assertTrue(actualResponse.isEmpty());
     }
 
     @Test
@@ -370,7 +393,46 @@ class ContentServiceImplTest {
         Map<String, Object> actualResponse = contentService.readContent(contentId);
 
         // Assert
-        assertNull(actualResponse);
+        assertNotNull(actualResponse);
+        assertTrue(actualResponse.isEmpty());
+    }
+
+    @Test
+    void testReadContentFromCache_WhenRedisDataParsesToEmptyMap_ReturnsEmptyMap() throws Exception {
+        // Covers the "MapUtils.isNotEmpty(contentData) == false" branch in
+        // parseAndCacheContent (line 80): redis has content but it parses to an empty map.
+        List<String> fields = List.of("field1", "field2");
+        String redisContent = "{}";
+        when(dataCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(null);
+        when(redisCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(redisContent);
+        when(mapper.readValue(anyString(), any(TypeReference.class))).thenReturn(new HashMap<>());
+
+        Map<String, Object> result = contentService.readContentFromCache(CONTENT_ID, fields);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(dataCacheMgr, never()).putContentInCache(anyString(), anyMap());
+    }
+
+    @Test
+    void testReadContentFromCache_WhenRedisDataMissingField_SkipsThatField() throws Exception {
+        // Covers the "contentData.containsKey(field) == false" branch in
+        // parseAndCacheContent (line 82): contentData is non-empty but is missing one
+        // of the requested fields.
+        List<String> fields = List.of("field1", "field2");
+        String redisContent = "{\"field1\":\"value1\"}";
+        Map<String, Object> contentData = new HashMap<>();
+        contentData.put("field1", "value1");
+        when(dataCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(null);
+        when(redisCacheMgr.getContentFromCache(CONTENT_ID)).thenReturn(redisContent);
+        when(mapper.readValue(anyString(), any(TypeReference.class))).thenReturn(contentData);
+
+        Map<String, Object> result = contentService.readContentFromCache(CONTENT_ID, fields);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("value1", result.get("field1"));
+        assertFalse(result.containsKey("field2"));
     }
 
     @Test
